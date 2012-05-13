@@ -65,7 +65,7 @@ void display() {
   // move to origin
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-	glTranslatef(0,540,0);
+	glTranslatef(0,VIDEO_RES_Y,0);
 	glScalef(1.0f, -1.0f, 1.0f);
 
 	surface_get_image( s40, image );
@@ -74,14 +74,14 @@ void display() {
 	glEnable(GL_TEXTURE_2D);
 
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, 1, 960, 540, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image);
+	glTexImage2D(GL_TEXTURE_2D, 0, 1, VIDEO_RES_X, VIDEO_RES_Y, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image);
 
 	glBegin(GL_TRIANGLE_FAN);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	glTexCoord2f(0, 0); glVertex3f(0,0,0);
-	glTexCoord2f(1, 0); glVertex3f(960,0,0);
-	glTexCoord2f(1, 1); glVertex3f(960,540,0);
-	glTexCoord2f(0, 1); glVertex3f(0,540,0);
+	glTexCoord2f(1, 0); glVertex3f(VIDEO_RES_X,0,0);
+	glTexCoord2f(1, 1); glVertex3f(VIDEO_RES_X,VIDEO_RES_Y,0);
+	glTexCoord2f(0, 1); glVertex3f(0,VIDEO_RES_Y,0);
 	glEnd();
 
 	glDisable(GL_TEXTURE_2D);
