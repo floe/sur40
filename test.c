@@ -1,3 +1,14 @@
+/*
+ * microsoft surface 2.0 open source driver 0.0.1
+ *
+ * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
+ * Licensed under GNU General Public License (GPL) v2 or later
+ *
+ * this is so experimental that the warranty shot itself.
+ * so don't expect any.
+ *
+ */
+
 #include "surface.h"
 
 #include <stdio.h>
