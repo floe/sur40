@@ -1,7 +1,7 @@
 /*
  * Surface2.0/SUR40/PixelSense input driver
  *
- * Copyright (c) 2013 by Florian 'floe' Echtler <floe@butterbrot.org>
+ * Copyright (c) 2014 by Florian 'floe' Echtler <floe@butterbrot.org>
  *
  * Derived from the USB Skeleton driver 1.1,
  * Copyright (c) 2003 Greg Kroah-Hartman (greg@kroah.com)
@@ -11,6 +11,9 @@
  *
  * and from the generic hid-multitouch driver,
  * Copyright (c) 2010-2012 Stephane Chatty <chatty@enac.fr>
+ *
+ * and from the v4l2-pci-skeleton driver,
+ * Copyright (c) Copyright 2014 Cisco Systems, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -135,15 +138,7 @@ struct sur40_image_header {
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
 
-/*
- * Note: an earlier, non-public version of this driver used USB_RECIP_ENDPOINT
- * here by mistake which is very likely to have corrupted the firmware EEPROM
- * on two separate SUR40 devices. Thanks to Alan Stern who spotted this bug.
- * Should you ever run into a similar problem, the background story to this
- * incident and instructions on how to fix the corrupted EEPROM are available
- * at https://floe.butterbrot.org/matrix/hacking/surface/brick.html
-*/
-
+/* master device state */
 struct sur40_state {
 
 	struct usb_device *usbdev;
@@ -176,6 +171,16 @@ struct sur40_buffer {
 static struct video_device sur40_video_device;
 static struct v4l2_pix_format sur40_video_format;
 static struct vb2_queue sur40_queue;
+static void sur40_process_video(struct sur40_state *sur40);
+
+/*
+ * Note: an earlier, non-public version of this driver used USB_RECIP_ENDPOINT
+ * here by mistake which is very likely to have corrupted the firmware EEPROM
+ * on two separate SUR40 devices. Thanks to Alan Stern who spotted this bug.
+ * Should you ever run into a similar problem, the background story to this
+ * incident and instructions on how to fix the corrupted EEPROM are available
+ * at https://floe.butterbrot.org/matrix/hacking/surface/brick.html
+*/
 
 /* command wrapper */
 static int sur40_command(struct sur40_state *dev,
@@ -290,17 +295,13 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 /* core function: poll for new input data */
 static void sur40_poll(struct input_polled_dev *polldev)
 {
-	struct sur40_buffer *new_buf;
-	uint8_t *buffer;
-
 	struct sur40_state *sur40 = polldev->private;
 	struct input_dev *input = polldev->input;
-	int result, bulk_read, need_blobs, packet_blobs, i, bufpos;
+	int result, bulk_read, need_blobs, packet_blobs, i;
 	u32 uninitialized_var(packet_id);
 
 	struct sur40_header *header = &sur40->bulk_in_buffer->header;
 	struct sur40_blob *inblob = &sur40->bulk_in_buffer->blobs[0];
-	struct sur40_image_header *img = (void*)(sur40->bulk_in_buffer);
 
 	dev_dbg(sur40->dev, "poll\n");
 
@@ -361,7 +362,18 @@ static void sur40_poll(struct input_polled_dev *polldev)
 	input_mt_sync_frame(input);
 	input_sync(input);
 
-	/* deal with video data here - should be moved to own method */
+	sur40_process_video(sur40);
+}
+
+/* deal with video data */
+static void sur40_process_video(struct sur40_state *sur40)
+{
+
+	struct sur40_image_header *img = (void *)(sur40->bulk_in_buffer);
+	int result, bulk_read, bufpos;
+	struct sur40_buffer *new_buf;
+	uint8_t *buffer;
+
 	if (list_empty(&sur40->buf_list))
 		return;
 
@@ -375,32 +387,48 @@ static void sur40_poll(struct input_polled_dev *polldev)
 	bufpos = 0;
 
 	result = usb_bulk_msg(sur40->usbdev,
-			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT), // sur40->bulk_in_epaddr),
+			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
 			sur40->bulk_in_buffer, sur40->bulk_in_size,
 			&bulk_read, 1000);
-	if (result < 0) { dev_err(sur40->dev,"error in usb_bulk_read\n"); goto err_poll; }
-	if (bulk_read != sizeof(struct sur40_image_header)) {
-		dev_err(sur40->dev, "received %d bytes (%ld expected)\n", bulk_read, sizeof(struct sur40_image_header));
+
+	if (result < 0) {
+		dev_err(sur40->dev, "error in usb_bulk_read\n");
 		goto err_poll;
 	}
 
-	if (img->magic != VIDEO_HEADER_MAGIC) { dev_err(sur40->dev,"image magic mismatch\n"); goto err_poll; }
-	if (img->size  != sur40_video_format.sizeimage) { dev_err(sur40->dev,"image size  mismatch\n"); goto err_poll; }
+	if (bulk_read != sizeof(struct sur40_image_header)) {
+		dev_err(sur40->dev, "received %d bytes (%ld expected)\n",
+			bulk_read, sizeof(struct sur40_image_header));
+		goto err_poll;
+	}
+
+	if (le32_to_cpu(img->magic) != VIDEO_HEADER_MAGIC) {
+		dev_err(sur40->dev, "image magic mismatch\n");
+		goto err_poll;
+	}
+
+	if (le32_to_cpu(img->size) != sur40_video_format.sizeimage) {
+		dev_err(sur40->dev, "image size mismatch\n");
+		goto err_poll;
+	}
 
 	buffer = vb2_plane_vaddr(&new_buf->vb, 0);
 	while (bufpos < sur40_video_format.sizeimage) {
 		result = usb_bulk_msg(sur40->usbdev,
-			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT), // sur40->bulk_in_epaddr),
+			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
 			buffer+bufpos, VIDEO_PACKET_SIZE,
 			&bulk_read, 1000);
-		if (result < 0) { dev_err(sur40->dev,"error in usb_bulk_read\n"); goto err_poll; }
+		if (result < 0) {
+			dev_err(sur40->dev, "error in usb_bulk_read\n");
+			goto err_poll;
+		}
 		bufpos += bulk_read;
 	}
 
 	/* mark as finished */
-	vb2_set_plane_payload(&new_buf->vb, 0, sur40_video_format.sizeimage);
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
+	new_buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
 	return;
 
@@ -518,8 +546,8 @@ static int sur40_probe(struct usb_interface *interface,
 	error = v4l2_device_register(sur40->dev, &sur40->v4l2);
 	if (error) {
 		dev_err(&interface->dev,
-			"Unable to register video device.");
-		goto err_free_buffer;
+			"Unable to register video master device.");
+		goto err_unreg_v4l2;
 	}
 
 	/* initialize the lock and subdevice */
@@ -527,15 +555,15 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->queue.drv_priv = sur40;
 	sur40->queue.lock = &sur40->lock;
 
-	// init the queue
+	/* initialize the queue */
 	error = vb2_queue_init(&sur40->queue);
 	if (error)
-		goto err_free_buffer;
+		goto err_unreg_v4l2;
 
 	sur40->alloc_ctx = vb2_dma_contig_init_ctx(sur40->dev);
 	if (IS_ERR(sur40->alloc_ctx)) {
 		dev_err(sur40->dev, "Can't allocate buffer context");
-		goto err_free_buffer;
+		goto err_unreg_v4l2;
 	}
 
 	sur40->vdev = sur40_video_device;
@@ -545,8 +573,11 @@ static int sur40_probe(struct usb_interface *interface,
 	video_set_drvdata(&sur40->vdev, sur40);
 
 	error = video_register_device(&sur40->vdev, VFL_TYPE_GRABBER, -1);
-	if (error)
-		goto err_free_buffer;
+	if (error) {
+		dev_err(&interface->dev,
+			"Unable to register video subdevice.");
+		goto err_unreg_video;
+	}
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(interface, sur40);
@@ -554,10 +585,10 @@ static int sur40_probe(struct usb_interface *interface,
 
 	return 0;
 
-/*v4l2_device_unregister(&sur40->v4l2);
-video_unregister_device(&sur40->vdev);
-vb2_dma_contig_cleanup_ctx(sur40->alloc_ctx);*/
-
+err_unreg_video:
+	video_unregister_device(&sur40->vdev);
+err_unreg_v4l2:
+	v4l2_device_unregister(&sur40->v4l2);
 err_free_buffer:
 	kfree(sur40->bulk_in_buffer);
 err_free_polldev:
@@ -593,14 +624,14 @@ static void sur40_disconnect(struct usb_interface *interface)
  * minimum number: many DMA engines need a minimum of 2 buffers in the
  * queue and you need to have another available for userspace processing.
  */
-static int sur40_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+static int sur40_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+	struct sur40_state *sur40 = vb2_get_drv_priv(q);
 
-	if (vq->num_buffers + *nbuffers < 3)
-		*nbuffers = 3 - vq->num_buffers;
+	if (q->num_buffers + *nbuffers < 3)
+		*nbuffers = 3 - q->num_buffers;
 
 	if (fmt && fmt->fmt.pix.sizeimage < sur40_video_format.sizeimage)
 		return -EINVAL;
@@ -637,7 +668,7 @@ static int sur40_buffer_prepare(struct vb2_buffer *vb)
 static void sur40_buffer_queue(struct vb2_buffer *vb)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vb->vb2_queue);
-	struct sur40_buffer *buf = (struct sur40_buffer*)(vb);
+	struct sur40_buffer *buf = (struct sur40_buffer *)vb;
 
 	spin_lock(&sur40->qlock);
 	list_add_tail(&buf->list, &sur40->buf_list);
@@ -666,20 +697,9 @@ static void return_all_buffers(struct sur40_state *sur40,
 static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
-	int ret = 0;
 
 	sur40->sequence = 0;
-
-	/* TODO: start DMA */
-
-	if (ret) {
-		/*
-		 * In case of an error, return all active buffers to the
-		 * QUEUED state
-		 */
-		return_all_buffers(sur40, VB2_BUF_STATE_QUEUED);
-	}
-	return ret;
+	return 0;
 }
 
 /*
@@ -689,9 +709,6 @@ static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
-
-	/* TODO: stop DMA */
-
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
 }
@@ -704,11 +721,10 @@ static int sur40_vidioc_querycap(struct file *file, void *priv,
 
 	strlcpy(cap->driver, DRIVER_SHORT, sizeof(cap->driver));
 	strlcpy(cap->card, DRIVER_LONG, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "USB:%s",
-		 sur40->usbdev->devpath);
+	usb_make_path(sur40->usbdev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-	                   V4L2_CAP_READWRITE |
-	                   V4L2_CAP_STREAMING;
+		V4L2_CAP_READWRITE |
+		V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
@@ -727,7 +743,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 
 static int sur40_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	return (i != 0);
+	return (i == 0) ? 0 : -EINVAL;
 }
 
 static int sur40_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
@@ -773,7 +789,7 @@ static struct vb2_ops sur40_queue_ops = {
 
 static struct vb2_queue sur40_queue = {
 	.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-	.io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ,
+	.io_modes = VB2_MMAP | VB2_READ,
 	.buf_struct_size = sizeof(struct sur40_buffer),
 	.ops = &sur40_queue_ops,
 	.mem_ops = &vb2_dma_contig_memops,
@@ -805,19 +821,15 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_g_input		= sur40_vidioc_g_input,
 	.vidioc_s_input		= sur40_vidioc_s_input,
 
-	.vidioc_reqbufs 	= vb2_ioctl_reqbufs,
-	.vidioc_create_bufs 	= vb2_ioctl_create_bufs,
-	.vidioc_querybuf 	= vb2_ioctl_querybuf,
-	.vidioc_qbuf 		= vb2_ioctl_qbuf,
-	.vidioc_dqbuf 		= vb2_ioctl_dqbuf,
-	.vidioc_expbuf 		= vb2_ioctl_expbuf,
+	.vidioc_reqbufs		= vb2_ioctl_reqbufs,
+	.vidioc_create_bufs	= vb2_ioctl_create_bufs,
+	.vidioc_querybuf	= vb2_ioctl_querybuf,
+	.vidioc_qbuf		= vb2_ioctl_qbuf,
+	.vidioc_dqbuf		= vb2_ioctl_dqbuf,
+	.vidioc_expbuf		= vb2_ioctl_expbuf,
 
-	.vidioc_streamon 	= vb2_ioctl_streamon,
-	.vidioc_streamoff 	= vb2_ioctl_streamoff,
-
-	/*.vidioc_log_status      = v4l2_ctrl_log_status,
-	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
-	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,*/
+	.vidioc_streamon	= vb2_ioctl_streamon,
+	.vidioc_streamoff	= vb2_ioctl_streamoff,
 };
 
 static struct video_device sur40_video_device = {
@@ -832,7 +844,7 @@ static struct v4l2_pix_format sur40_video_format = {
 	.width  = SENSOR_RES_X / 2,
 	.height = SENSOR_RES_Y / 2,
 	.field = V4L2_FIELD_NONE,
-	//.colorspace = V4L2_COLORSPACE_..., FIXME is this required?
+	.colorspace = V4L2_COLORSPACE_SRGB,
 	.bytesperline = SENSOR_RES_X / 2,
 	.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
 	.priv = 0,
