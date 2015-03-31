@@ -168,9 +168,9 @@ struct sur40_buffer {
 };
 
 /* forward declarations */
-static struct video_device sur40_video_device;
-static struct v4l2_pix_format sur40_video_format;
-static struct vb2_queue sur40_queue;
+static const struct video_device sur40_video_device;
+static const struct v4l2_pix_format sur40_video_format;
+static const struct vb2_queue sur40_queue;
 static void sur40_process_video(struct sur40_state *sur40);
 
 /*
@@ -370,22 +370,27 @@ static void sur40_process_video(struct sur40_state *sur40)
 {
 
 	struct sur40_image_header *img = (void *)(sur40->bulk_in_buffer);
-	int result, bulk_read, bufpos;
+	int result, bulk_read, bufpos = 0;
 	struct sur40_buffer *new_buf;
 	uint8_t *buffer;
 
-	if (list_empty(&sur40->buf_list))
+	if (!sur40->queue.start_streaming_called)
 		return;
 
 	/* get a new buffer from the list */
 	spin_lock(&sur40->qlock);
+	if (list_empty(&sur40->buf_list)) {
+		dev_dbg(sur40->dev, "buffer queue empty\n");
+		spin_unlock(&sur40->qlock);
+		return;
+	}
 	new_buf = list_entry(sur40->buf_list.next, struct sur40_buffer, list);
 	list_del(&new_buf->list);
 	spin_unlock(&sur40->qlock);
 
-	/* retrieve data via bulk read */
-	bufpos = 0;
+	dev_dbg(sur40->dev, "buffer acquired\n");
 
+	/* retrieve data via bulk read */
 	result = usb_bulk_msg(sur40->usbdev,
 			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
 			sur40->bulk_in_buffer, sur40->bulk_in_size,
@@ -412,6 +417,8 @@ static void sur40_process_video(struct sur40_state *sur40)
 		goto err_poll;
 	}
 
+	dev_dbg(sur40->dev, "header acquired\n");
+
 	buffer = vb2_plane_vaddr(&new_buf->vb, 0);
 	while (bufpos < sur40_video_format.sizeimage) {
 		result = usb_bulk_msg(sur40->usbdev,
@@ -425,11 +432,14 @@ static void sur40_process_video(struct sur40_state *sur40)
 		bufpos += bulk_read;
 	}
 
+	dev_dbg(sur40->dev, "image acquired\n");
+
 	/* mark as finished */
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
 	new_buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
+	dev_dbg(sur40->dev, "buffer marked done\n");
 	return;
 
 err_poll:
@@ -604,8 +614,8 @@ static void sur40_disconnect(struct usb_interface *interface)
 {
 	struct sur40_state *sur40 = usb_get_intfdata(interface);
 
-	v4l2_device_unregister(&sur40->v4l2);
 	video_unregister_device(&sur40->vdev);
+	v4l2_device_unregister(&sur40->v4l2);
 	vb2_dma_contig_cleanup_ctx(sur40->alloc_ctx);
 
 	input_unregister_polled_device(sur40->input);
@@ -709,6 +719,7 @@ static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
 }
@@ -777,7 +788,7 @@ static const struct usb_device_id sur40_table[] = {
 MODULE_DEVICE_TABLE(usb, sur40_table);
 
 /* V4L2 structures */
-static struct vb2_ops sur40_queue_ops = {
+static const struct vb2_ops sur40_queue_ops = {
 	.queue_setup		= sur40_queue_setup,
 	.buf_prepare		= sur40_buffer_prepare,
 	.buf_queue		= sur40_buffer_queue,
@@ -787,15 +798,19 @@ static struct vb2_ops sur40_queue_ops = {
 	.wait_finish		= vb2_ops_wait_finish,
 };
 
-static struct vb2_queue sur40_queue = {
+static const struct vb2_queue sur40_queue = {
 	.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-	.io_modes = VB2_MMAP | VB2_READ,
+	/*
+	 * VB2_USERPTR in currently not enabled: passing a user pointer to
+	 * dma-sg will result in segment sizes that are not a multiple of
+	 * 512 bytes, which is required by the host controller.
+	*/
+	.io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF,
 	.buf_struct_size = sizeof(struct sur40_buffer),
 	.ops = &sur40_queue_ops,
 	.mem_ops = &vb2_dma_contig_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
 	.min_buffers_needed = 3,
-	.gfp_flags = GFP_DMA,
 };
 
 static const struct v4l2_file_operations sur40_video_fops = {
@@ -832,14 +847,14 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_streamoff	= vb2_ioctl_streamoff,
 };
 
-static struct video_device sur40_video_device = {
+static const struct video_device sur40_video_device = {
 	.name = DRIVER_LONG,
 	.fops = &sur40_video_fops,
 	.ioctl_ops = &sur40_video_ioctl_ops,
 	.release = video_device_release_empty,
 };
 
-static struct v4l2_pix_format sur40_video_format = {
+static const struct v4l2_pix_format sur40_video_format = {
 	.pixelformat = V4L2_PIX_FMT_GREY,
 	.width  = SENSOR_RES_X / 2,
 	.height = SENSOR_RES_Y / 2,
@@ -847,7 +862,6 @@ static struct v4l2_pix_format sur40_video_format = {
 	.colorspace = V4L2_COLORSPACE_SRGB,
 	.bytesperline = SENSOR_RES_X / 2,
 	.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
-	.priv = 0,
 };
 
 /* USB-specific object needed to register this driver with the USB subsystem. */
