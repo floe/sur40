@@ -402,7 +402,7 @@ static void sur40_process_video(struct sur40_state *sur40)
 	}
 
 	if (bulk_read != sizeof(struct sur40_image_header)) {
-		dev_err(sur40->dev, "received %d bytes (%ld expected)\n",
+		dev_err(sur40->dev, "received %d bytes (%zd expected)\n",
 			bulk_read, sizeof(struct sur40_image_header));
 		goto err_poll;
 	}
