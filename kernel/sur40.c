@@ -375,7 +375,7 @@ static void sur40_process_video(struct sur40_state *sur40)
 	struct sg_table *sgt;
 	int result, bulk_read;
 
-	if (!sur40->queue.start_streaming_called)
+	if (!vb2_start_streaming_called(&sur40->queue))
 		return;
 
 	/* get a new buffer from the list */
