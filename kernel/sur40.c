@@ -38,7 +38,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
-#include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-dma-sg.h>
 
 /* read 512 bytes from endpoint 0x86 -> get header + blobs */
 struct sur40_header {
@@ -370,9 +370,10 @@ static void sur40_process_video(struct sur40_state *sur40)
 {
 
 	struct sur40_image_header *img = (void *)(sur40->bulk_in_buffer);
-	int result, bulk_read, bufpos = 0;
 	struct sur40_buffer *new_buf;
-	uint8_t *buffer;
+	struct usb_sg_request sgr;
+	struct sg_table *sgt;
+	int result, bulk_read;
 
 	if (!sur40->queue.start_streaming_called)
 		return;
@@ -419,17 +420,20 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	dev_dbg(sur40->dev, "header acquired\n");
 
-	buffer = vb2_plane_vaddr(&new_buf->vb, 0);
-	while (bufpos < sur40_video_format.sizeimage) {
-		result = usb_bulk_msg(sur40->usbdev,
-			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
-			buffer+bufpos, VIDEO_PACKET_SIZE,
-			&bulk_read, 1000);
-		if (result < 0) {
-			dev_err(sur40->dev, "error in usb_bulk_read\n");
-			goto err_poll;
-		}
-		bufpos += bulk_read;
+	sgt = vb2_dma_sg_plane_desc(&new_buf->vb, 0);
+
+	result = usb_sg_init(&sgr, sur40->usbdev,
+		usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT), 0,
+		sgt->sgl, sgt->nents, sur40_video_format.sizeimage, 0);
+	if (result < 0) {
+		dev_err(sur40->dev, "error %d in usb_sg_init\n", result);
+		goto err_poll;
+	}
+
+	usb_sg_wait(&sgr);
+	if (sgr.status < 0) {
+		dev_err(sur40->dev, "error %d in usb_sg_wait\n", sgr.status);
+		goto err_poll;
 	}
 
 	dev_dbg(sur40->dev, "image acquired\n");
@@ -570,7 +574,7 @@ static int sur40_probe(struct usb_interface *interface,
 	if (error)
 		goto err_unreg_v4l2;
 
-	sur40->alloc_ctx = vb2_dma_contig_init_ctx(sur40->dev);
+	sur40->alloc_ctx = vb2_dma_sg_init_ctx(sur40->dev);
 	if (IS_ERR(sur40->alloc_ctx)) {
 		dev_err(sur40->dev, "Can't allocate buffer context");
 		goto err_unreg_v4l2;
@@ -616,7 +620,7 @@ static void sur40_disconnect(struct usb_interface *interface)
 
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_unregister(&sur40->v4l2);
-	vb2_dma_contig_cleanup_ctx(sur40->alloc_ctx);
+	vb2_dma_sg_cleanup_ctx(sur40->alloc_ctx);
 
 	input_unregister_polled_device(sur40->input);
 	input_free_polled_device(sur40->input);
@@ -808,7 +812,7 @@ static const struct vb2_queue sur40_queue = {
 	.io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF,
 	.buf_struct_size = sizeof(struct sur40_buffer),
 	.ops = &sur40_queue_ops,
-	.mem_ops = &vb2_dma_contig_memops,
+	.mem_ops = &vb2_dma_sg_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
 	.min_buffers_needed = 3,
 };
