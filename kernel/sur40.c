@@ -125,7 +125,7 @@ struct sur40_image_header {
 #define VIDEO_PACKET_SIZE  16384
 
 /* polling interval (ms) */
-#define POLL_INTERVAL 4
+#define POLL_INTERVAL 1
 
 /* maximum number of contacts FIXME: this is a guess? */
 #define MAX_CONTACTS 64
@@ -804,8 +804,8 @@ static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
         return -EINVAL;
 
     f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-    f->discrete.denominator  = 960;
-    f->discrete.numerator = 16;
+    f->discrete.denominator  = 60;
+    f->discrete.numerator = 1;
     return 0;
 }
 
