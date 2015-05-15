@@ -125,7 +125,7 @@ struct sur40_image_header {
 #define VIDEO_PACKET_SIZE  16384
 
 /* polling interval (ms) */
-#define POLL_INTERVAL 10
+#define POLL_INTERVAL 4
 
 /* maximum number of contacts FIXME: this is a guess? */
 #define MAX_CONTACTS 64
@@ -781,6 +781,31 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 	return 0;
 }
 
+static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
+                                 struct v4l2_frmsizeenum *f)
+{
+    if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY))
+        return -EINVAL;
+
+    f->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+    f->discrete.width  = SENSOR_RES_X / 2;
+    f->discrete.height = SENSOR_RES_Y / 2;
+    return 0;
+}
+
+static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
+                                        struct v4l2_frmivalenum *f)
+{
+    if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY) || (f->width != SENSOR_RES_X / 2) || (f->height != SENSOR_RES_Y / 2) )
+        return -EINVAL;
+
+    f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+    f->discrete.denominator  = 960;
+    f->discrete.numerator = 16;
+    return 0;
+}
+
+
 static const struct usb_device_id sur40_table[] = {
 	{ USB_DEVICE(ID_MICROSOFT, ID_SUR40) },  /* Samsung SUR40 */
 	{ }                                      /* terminating null entry */
@@ -831,6 +856,9 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap	= sur40_vidioc_fmt,
 	.vidioc_s_fmt_vid_cap	= sur40_vidioc_fmt,
 	.vidioc_g_fmt_vid_cap	= sur40_vidioc_fmt,
+    
+    .vidioc_enum_framesizes = sur40_vidioc_enum_framesizes,
+    .vidioc_enum_frameintervals = sur40_vidioc_enum_frameintervals,
 
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
