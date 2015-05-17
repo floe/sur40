@@ -786,27 +786,29 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 }
 
 static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
-                                 struct v4l2_frmsizeenum *f)
+				 struct v4l2_frmsizeenum *f)
 {
-    if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY))
-        return -EINVAL;
+	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY))
+		return -EINVAL;
 
-    f->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-    f->discrete.width  = SENSOR_RES_X / 2;
-    f->discrete.height = SENSOR_RES_Y / 2;
-    return 0;
+	f->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	f->discrete.width  = sur40_video_format.width;
+	f->discrete.height = sur40_video_format.height;
+	return 0;
 }
 
 static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
-                                        struct v4l2_frmivalenum *f)
+			   struct v4l2_frmivalenum *f)
 {
-    if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY) || (f->width != SENSOR_RES_X / 2) || (f->height != SENSOR_RES_Y / 2) )
-        return -EINVAL;
+	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY)
+		|| (f->width != sur40_video_format.width)
+		|| (f->height != sur40_video_format.height))
+			return -EINVAL;
 
-    f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-    f->discrete.denominator  = 960;
-    f->discrete.numerator = 16;
-    return 0;
+	f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	f->discrete.denominator  = 60;
+	f->discrete.numerator = 1;
+	return 0;
 }
 
 
@@ -860,9 +862,9 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_try_fmt_vid_cap	= sur40_vidioc_fmt,
 	.vidioc_s_fmt_vid_cap	= sur40_vidioc_fmt,
 	.vidioc_g_fmt_vid_cap	= sur40_vidioc_fmt,
-    
-    .vidioc_enum_framesizes = sur40_vidioc_enum_framesizes,
-    .vidioc_enum_frameintervals = sur40_vidioc_enum_frameintervals,
+
+	.vidioc_enum_framesizes = sur40_vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals = sur40_vidioc_enum_frameintervals,
 
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
