@@ -342,7 +342,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		 * instead of at the end.
 		 */
 		if (packet_id != header->packet_id)
-			dev_warn(sur40->dev, "packet ID mismatch\n");
+			dev_dbg(sur40->dev, "packet ID mismatch\n");
 
 		packet_blobs = result / sizeof(struct sur40_blob);
 		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
