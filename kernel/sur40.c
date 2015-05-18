@@ -440,6 +440,7 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	/* mark as finished */
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
+	if (sur40->sequence == -1) goto err_poll;
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
 	new_buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
@@ -723,6 +724,7 @@ static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+	sur40->sequence = -1;
 
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
@@ -786,7 +788,7 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 }
 
 static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
-				 struct v4l2_frmsizeenum *f)
+					struct v4l2_frmsizeenum *f)
 {
 	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY))
 		return -EINVAL;
@@ -798,10 +800,10 @@ static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
 }
 
 static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
-			   struct v4l2_frmivalenum *f)
+					    struct v4l2_frmivalenum *f)
 {
 	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY)
-		|| (f->width != sur40_video_format.width)
+		|| (f->width  != sur40_video_format.width)
 		|| (f->height != sur40_video_format.height))
 			return -EINVAL;
 
