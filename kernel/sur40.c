@@ -782,7 +782,7 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 }
 
 static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
-				 struct v4l2_frmsizeenum *f)
+					struct v4l2_frmsizeenum *f)
 {
 	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY))
 		return -EINVAL;
@@ -794,10 +794,10 @@ static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
 }
 
 static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
-			   struct v4l2_frmivalenum *f)
+					    struct v4l2_frmivalenum *f)
 {
 	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY)
-		|| (f->width != sur40_video_format.width)
+		|| (f->width  != sur40_video_format.width)
 		|| (f->height != sur40_video_format.height))
 			return -EINVAL;
 
