@@ -438,9 +438,12 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	dev_dbg(sur40->dev, "image acquired\n");
 
+	/* return error if streaming was stopped in the meantime */
+	if (sur40->sequence == -1)
+		goto err_poll;
+
 	/* mark as finished */
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
-	if (sur40->sequence == -1) goto err_poll;
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
 	new_buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
@@ -802,13 +805,13 @@ static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
 static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
 					    struct v4l2_frmivalenum *f)
 {
-	if ((f->index != 0) || (f->pixel_format != V4L2_PIX_FMT_GREY)
+	if ((f->index > 1) || (f->pixel_format != V4L2_PIX_FMT_GREY)
 		|| (f->width  != sur40_video_format.width)
 		|| (f->height != sur40_video_format.height))
 			return -EINVAL;
 
 	f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	f->discrete.denominator  = 60;
+	f->discrete.denominator  = 60/(f->index+1);
 	f->discrete.numerator = 1;
 	return 0;
 }
