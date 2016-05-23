@@ -793,10 +793,12 @@ static int sur40_ioctl_parm(struct file *file, void *priv,
 			    struct v4l2_streamparm *p)
 {
 	if (p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 		p->parm.capture.timeperframe.numerator = 1;
 		p->parm.capture.timeperframe.denominator = 60;
-	}
-	return 0;
+		p->parm.capture.readbuffers = 1;
+		return 0;
+	} else return -EINVAL;
 }
 
 static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
