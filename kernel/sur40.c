@@ -796,7 +796,7 @@ static int sur40_ioctl_parm(struct file *file, void *priv,
 		p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 		p->parm.capture.timeperframe.numerator = 1;
 		p->parm.capture.timeperframe.denominator = 60;
-		p->parm.capture.readbuffers = 1;
+		p->parm.capture.readbuffers = 3;
 		return 0;
 	} else return -EINVAL;
 }
