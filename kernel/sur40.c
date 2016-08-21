@@ -197,34 +197,28 @@ static int sur40_command(struct sur40_state *dev,
 static int sur40_init(struct sur40_state *dev)
 {
 	int result;
-	u8 *buffer;
-
-	buffer = kmalloc(24, GFP_KERNEL);
-	if (!buffer) {
-		result = -ENOMEM;
-		goto error;
-	}
+	u8 buffer[24];
 
 	/* stupidly replay the original MS driver init sequence */
 	result = sur40_command(dev, SUR40_GET_VERSION, 0x00, buffer, 12);
 	if (result < 0)
-		goto error;
+		return result;
 
 	result = sur40_command(dev, SUR40_GET_VERSION, 0x01, buffer, 12);
 	if (result < 0)
-		goto error;
+		return result;
 
 	result = sur40_command(dev, SUR40_GET_VERSION, 0x02, buffer, 12);
 	if (result < 0)
-		goto error;
+		return result;
 
 	result = sur40_command(dev, SUR40_UNKNOWN2,    0x00, buffer, 24);
 	if (result < 0)
-		goto error;
+		return result;
 
 	result = sur40_command(dev, SUR40_UNKNOWN1,    0x00, buffer,  5);
 	if (result < 0)
-		goto error;
+		return result;
 
 	result = sur40_command(dev, SUR40_GET_VERSION, 0x03, buffer, 12);
 
@@ -232,8 +226,7 @@ static int sur40_init(struct sur40_state *dev)
 	 * Discard the result buffer - no known data inside except
 	 * some version strings, maybe extract these sometime...
 	 */
-error:
-	kfree(buffer);
+
 	return result;
 }
 
@@ -451,6 +444,7 @@ static void sur40_process_video(struct sur40_state *sur40)
 		return;
 
 	/* mark as finished */
+	v4l2_get_timestamp(&new_buf->vb.timestamp);
 	new_buf->vb.sequence = sur40->sequence++;
 	new_buf->vb.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
@@ -659,16 +653,13 @@ static int sur40_queue_setup(struct vb2_queue *q, const void *parg,
 
 	if (q->num_buffers + *nbuffers < 3)
 		*nbuffers = 3 - q->num_buffers;
-	alloc_ctxs[0] = sur40->alloc_ctx;
 
 	if (fmt && fmt->fmt.pix.sizeimage < sur40_video_format.sizeimage)
 		return -EINVAL;
 
-	if (*nplanes)
-		return sizes[0] < sur40_video_format.sizeimage ? -EINVAL : 0;
-
 	*nplanes = 1;
-	sizes[0] = sur40_video_format.sizeimage;
+	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : sur40_video_format.sizeimage;
+	alloc_ctxs[0] = sur40->alloc_ctx;
 
 	return 0;
 }
@@ -792,16 +783,6 @@ static int sur40_vidioc_fmt(struct file *file, void *priv,
 	return 0;
 }
 
-static int sur40_ioctl_parm(struct file *file, void *priv,
-			    struct v4l2_streamparm *p)
-{
-	if (p->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		p->parm.capture.timeperframe.numerator = 1;
-		p->parm.capture.timeperframe.denominator = 60;
-	}
-	return 0;
-}
-
 static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
@@ -828,13 +809,13 @@ static int sur40_vidioc_enum_framesizes(struct file *file, void *priv,
 static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
 					    struct v4l2_frmivalenum *f)
 {
-	if ((f->index > 0) || (f->pixel_format != V4L2_PIX_FMT_GREY)
+	if ((f->index > 1) || (f->pixel_format != V4L2_PIX_FMT_GREY)
 		|| (f->width  != sur40_video_format.width)
 		|| (f->height != sur40_video_format.height))
 			return -EINVAL;
 
 	f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	f->discrete.denominator  = 60;
+	f->discrete.denominator  = 60/(f->index+1);
 	f->discrete.numerator = 1;
 	return 0;
 }
@@ -893,9 +874,6 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 
 	.vidioc_enum_framesizes = sur40_vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = sur40_vidioc_enum_frameintervals,
-
-	.vidioc_g_parm = sur40_ioctl_parm,
-	.vidioc_s_parm = sur40_ioctl_parm,
 
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
