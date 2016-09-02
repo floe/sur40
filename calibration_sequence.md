@@ -136,4 +136,60 @@ control sequence @ 44930 {
 
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 17 00 00 00, 40 c5 b2 00 04 00 00 00
 	
+	[bulk write 2048 bytes (with headers) to endpoint 0x08 ]
 
+	40 c5 17 00 80 00 00 00
+	c0 b4 00 00 00 00 40 00 [read 64 bytes]
+	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+
+	40 c5 07 00 00 00 00 00
+	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+
+	40 c5 05 00 00 00 00 00
+	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+
+	40 c5 07 00 04 00 00 00
+	40 c5 07 00 00 00 00 00
+	40 b1 00 00 01 00 00 00
+	40 c4 00 00 00 00 08 00 [read 8 bytes]
+
+	[bulk read 2160 x 512 bytes from endpoint 0x04]
+
+	c0 c4 00 00 00 00 30 00 [read 48 bytes]
+}
+
+[bulk write 540 x 2048 bytes (with headers) to endpoint 0x08]
+
+control sequence @ 49879 {
+	
+	40 c5 17 00 80 00 00 00
+	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+
+	40 c5 07 00 00 00 00 00
+	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+
+	40 c5 05 00 00 00 00 00
+	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+
+	40 c5 07 00 02 00 00 00
+	40 c5 07 00 00 00 00 00
+
+	40 c3 90 01 01 00 04 00 [read 4 bytes] 00 00 00 05
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 2
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->4f, apparently polling for completion
+
+	40 c3 91 01 01 00 04 00 [read 4 bytes] 00 10 00 05
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 4
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->5f
+
+	40 c3 92 01 01 00 04 00 [read 4 bytes] 00 20 00 05
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 6
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->5f
+
+	[repeat ... for total of 540 iterations]
+
+	40 c3 ab 03 01 00 04 00 [read 4 bytes] 00 b0 21 05
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 6
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->4f
+
+}
