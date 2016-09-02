@@ -20,6 +20,7 @@ int timeout = 1000;
 
 #define ENDPOINT_VIDEO 0x82
 #define ENDPOINT_BLOBS 0x86
+#define ENDPOINT_CALIB ...
 
 #define VIDEO_HEADER_MAGIC 0x46425553
 #define VIDEO_PACKET_SIZE  16384
@@ -52,11 +53,31 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 /************************** CONTROL STUFF ***************************/
 
 #define SURFACE_GET_VERSION 0xb0 // 12 bytes string
-#define SURFACE_UNKNOWN1    0xb3 //  5 bytes
-#define SURFACE_UNKNOWN2    0xc1 // 24 bytes
 
-#define SURFACE_GET_STATUS  0xc5 //  4 bytes state (?)
-#define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors 
+#define SURFACE_UNKNOWN1    0xb3 //  5 bytes - sent only once during setup
+#define SURFACE_UNKNOWN2    0xc1 // 24 bytes - sent only once during setup
+
+#define SURFACE_GET_STATUS  0xc5 //  4 bytes state (?) - sent once per second, response usually 0x00000000
+#define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors   - sent once per second, response probably 0xZZXXYYTT
+
+// calibration commands 
+
+#define SURFACE_PEEK        0xc4 // read 48 bytes internal state - perhaps NV memory?
+#define SURFACE_POKE        0xc5 // used for calibration setup - seems to access NV memory like c4, or maybe I2C in general
+	#define SP_SUB1 0x05
+	#define SP_SUB2 0x07
+	#define SP_SUB3 0x17
+	#define SP_SUB4 0x32 // always with index 0x96 or 0xae, indicates nv write
+	#define SP_SUB5 0x72 // index == offset into nv memory
+	#define SP_SUB6 0xb2 // index == value to write into nv memory
+
+#define SURFACE_b4 0xb4 // read 64 bytes, get 30
+#define SURFACE_b6 0xb6 // write 42 bytes
+
+#define SURFACE_COMMIT 0xc3 // maybe trigger calibration save? send 4 bytes
+#define SURFACE_STATUS 0xb5 // read 64 bytes, get 41, used for polling
+
+
 
 // get version info
 void surface_get_version( usb_dev_handle* handle, uint16_t index ) {

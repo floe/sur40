@@ -72,7 +72,9 @@ bulk read 2 (large) images from endpoint 0x82
 
 control sequence @ 20349 {
 
-	c0 c4 00 00 00 00 30 00 [read 48 bytes]
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 10 00 00 20 00 20 00 20 00 20 00
+	                                        20 00 20 00 20 00 20 00 75 01 6f 38 97 97 97 97
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
 
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 ff 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 ff 00 00 00
@@ -131,7 +133,9 @@ bulk read 3 (large) images from endpoint 0x82
 
 control sequence @ 38768 {
 
-	read 48 bytes: c0 c4 00 00 00 00 30 00
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 80 00 80 00 80 00 80 00
+	                                        80 00 80 00 80 00 80 00 75 01 6f 38 99 99 99 99
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
 
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 ff 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 ff 00 00 00
@@ -160,20 +164,20 @@ control sequence @ 44930 {
 	40 c5 17 00 80 00 00 00
 	c0 b4 00 00 00 00 40 00 [read 64 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
 	                                        08 04 09 01 06 06 04 07 03 04 0a 08 01 05
-	40 b6 00 00 00 00 2a 00 [read 42 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
+	40 b6 00 00 00 00 2a 00 [send 42 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
 	                                        08 04 09 01 06 06 04 07 03 04 0a 08 01 05 fb f8
 	                                        f9 fe fd fa fa fa fc fb fe fb
 
 	40 c5 07 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
+	40 b6 00 00 00 00 2a 00 [send 42 bytes] same as above
 
 	40 c5 05 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
+	40 b6 00 00 00 00 2a 00 [send 42 bytes] same as above
 
 	40 c5 07 00 04 00 00 00
 	40 c5 07 00 00 00 00 00
-	40 b1 00 00 01 00 00 00
-	40 c4 00 00 00 00 08 00 [read 8 bytes] 00 00 00 05 00 e0 10 00
+	40 b1 00 00 01 00 00 00 <- possibly something like "reset sensors"?
+	40 c4 00 00 00 00 08 00 [send 8 bytes] 00 00 00 05 00 e0 10 00
 
 	[bulk read 2160 x 512 bytes from endpoint 0x04]
 
