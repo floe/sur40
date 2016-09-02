@@ -1,4 +1,15 @@
-start of calib control sequence {
+start of calib control sequence @ 3904 {
+
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
+	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
+
+	c0 b0 00 00 02 00 0c 00 [read 12 bytes] "2.0.21227.00"
+	c0 b0 00 00 00 00 0c 00 [read 12 bytes] "2.0.21209.01"
+
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
+	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
 
 	40 c5 05 00 04 00 00 00
 	40 c5 07 00 01 00 00 00
@@ -11,6 +22,10 @@ start of calib control sequence {
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 c7 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 c7 00 00 00
 
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
+	                                        ff 00 ff 00 ff 00 ff 00 75 01 6f 38 c7 c7 c7 99
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
+	
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 20 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 20 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 0c 00 00 00, 40 c5 b2 00 20 00 00 00
@@ -57,7 +72,7 @@ bulk read 2 (large) images from endpoint 0x82
 
 control sequence @ 20349 {
 
-	read 48 bytes: c0 c4 00 00 00 00 30 00
+	c0 c4 00 00 00 00 30 00 [read 48 bytes]
 
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 ff 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 ff 00 00 00
@@ -98,7 +113,9 @@ control sequence @ 32623 {
 	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 99 00 00 00
 	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 99 00 00 00
 
-	read 48 bytes: c0 c4 00 00 00 00 30 00
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
+	                                        ff 00 ff 00 ff 00 ff 00 75 01 6f 38 99 99 99 99
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
 
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 80 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 80 00 00 00
@@ -128,6 +145,8 @@ control sequence @ 38768 {
 
 bulk read 3 (large) images from endpoint 0x82
 
+### "Saving Calibration..." probably starts here
+
 control sequence @ 44930 {
 
 	40 c5 05 00 00 00 00 00
@@ -139,23 +158,28 @@ control sequence @ 44930 {
 	[bulk write 2048 bytes (with headers) to endpoint 0x08 ]
 
 	40 c5 17 00 80 00 00 00
-	c0 b4 00 00 00 00 40 00 [read 64 bytes]
-	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+	c0 b4 00 00 00 00 40 00 [read 64 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
+	                                        08 04 09 01 06 06 04 07 03 04 0a 08 01 05
+	40 b6 00 00 00 00 2a 00 [read 42 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
+	                                        08 04 09 01 06 06 04 07 03 04 0a 08 01 05 fb f8
+	                                        f9 fe fd fa fa fa fc fb fe fb
 
 	40 c5 07 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
 
 	40 c5 05 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
 
 	40 c5 07 00 04 00 00 00
 	40 c5 07 00 00 00 00 00
 	40 b1 00 00 01 00 00 00
-	40 c4 00 00 00 00 08 00 [read 8 bytes]
+	40 c4 00 00 00 00 08 00 [read 8 bytes] 00 00 00 05 00 e0 10 00
 
 	[bulk read 2160 x 512 bytes from endpoint 0x04]
 
-	c0 c4 00 00 00 00 30 00 [read 48 bytes]
+	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
+	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
+	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
 }
 
 [bulk write 540 x 2048 bytes (with headers) to endpoint 0x08]
@@ -163,19 +187,22 @@ control sequence @ 44930 {
 control sequence @ 49879 {
 	
 	40 c5 17 00 80 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
 
 	40 c5 07 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
 
 	40 c5 05 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes]
+	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
 
 	40 c5 07 00 02 00 00 00
 	40 c5 07 00 00 00 00 00
 
 	40 c3 90 01 01 00 04 00 [read 4 bytes] 00 00 00 05
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 2
+	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 2: 01 de 05 01 00 00 02 66 25 61 a2 00 00 00 e2 e0
+	                                             e2 a0 84 28 04 28 04 05 02 01 06 08 01 05 fb f8
+	                                             00 00 00 00 00 00 00 00 00
+
 	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->4f, apparently polling for completion
 
 	40 c3 91 01 01 00 04 00 [read 4 bytes] 00 10 00 05
@@ -191,5 +218,4 @@ control sequence @ 49879 {
 	40 c3 ab 03 01 00 04 00 [read 4 bytes] 00 b0 21 05
 	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 6
 	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->4f
-
 }
