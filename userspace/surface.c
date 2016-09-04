@@ -20,7 +20,9 @@ int timeout = 1000;
 
 #define ENDPOINT_VIDEO 0x82
 #define ENDPOINT_BLOBS 0x86
-#define ENDPOINT_CALIB ...
+
+#define ENDPOINT_CALIB_READ 0x84
+#define ENDPOINT_CALIB_SEND 0x08
 
 #define VIDEO_HEADER_MAGIC 0x46425553
 #define VIDEO_PACKET_SIZE  16384
@@ -75,7 +77,7 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 #define SURFACE_b6 0xb6 // write 42 bytes
 
 #define SURFACE_COMMIT 0xc3 // maybe trigger calibration save? send 4 bytes
-#define SURFACE_STATUS 0xb5 // read 64 bytes, get 41, used for polling
+#define SURFACE_STATUS 0xb5 // read 64 bytes, get 41, used for completion polling
 
 
 

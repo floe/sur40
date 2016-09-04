@@ -37,7 +37,7 @@ start of calib control sequence @ 3904 {
 }
 
 bulk read 2 images from endpoint 0x82
-	size == 1036800 - double the normal size!!! (960*1080)?
+	size == 1036800 - double the normal size!!! (960x540x2)
 	also takes ~ 0.5s / frame
 
 control sequence {
@@ -160,6 +160,7 @@ control sequence @ 44930 {
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 17 00 00 00, 40 c5 b2 00 04 00 00 00
 	
 	[bulk write 2048 bytes (with headers) to endpoint 0x08 ]
+		header == 0xOOOOOOOO 0xSSSSSSSS (O = Offsets starting at 0x05000000, S = always 0x00000800)
 
 	40 c5 17 00 80 00 00 00
 	c0 b4 00 00 00 00 40 00 [read 64 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
@@ -180,6 +181,8 @@ control sequence @ 44930 {
 	40 c4 00 00 00 00 08 00 [send 8 bytes] 00 00 00 05 00 e0 10 00
 
 	[bulk read 2160 x 512 bytes from endpoint 0x04]
+		960 x 2 bytes + 128 bytes padding per line, 540 lines
+		maybe lower & upper threshold per pixel?
 
 	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
 	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
