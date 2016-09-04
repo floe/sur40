@@ -108,6 +108,8 @@ control sequence @ 24456 {
 
 bulk read 2 (large) images from endpoint 0x82
 
+### maybe switch to dark side of calib board here
+
 control sequence @ 32623 {
 
 	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 99 00 00 00
@@ -176,6 +178,9 @@ control sequence @ 44930 {
 	40 b6 00 00 00 00 2a 00 [send 42 bytes] same as above
 
 	40 c5 07 00 04 00 00 00
+
+	[long pause in-between, prob. start of "saving calibration"]
+
 	40 c5 07 00 00 00 00 00
 	40 b1 00 00 01 00 00 00 <- possibly something like "reset sensors"?
 	40 c4 00 00 00 00 08 00 [send 8 bytes] 00 00 00 05 00 e0 10 00

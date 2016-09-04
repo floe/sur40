@@ -62,25 +62,6 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 #define SURFACE_GET_STATUS  0xc5 //  4 bytes state (?) - sent once per second, response usually 0x00000000
 #define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors   - sent once per second, response probably 0xZZXXYYTT
 
-// calibration commands 
-
-#define SURFACE_PEEK        0xc4 // read 48 bytes internal state - perhaps NV memory?
-#define SURFACE_POKE        0xc5 // used for calibration setup - seems to access NV memory like c4, or maybe I2C in general
-	#define SP_SUB1 0x05
-	#define SP_SUB2 0x07
-	#define SP_SUB3 0x17
-	#define SP_SUB4 0x32 // always with index 0x96 or 0xae, indicates nv write
-	#define SP_SUB5 0x72 // index == offset into nv memory
-	#define SP_SUB6 0xb2 // index == value to write into nv memory
-
-#define SURFACE_b4 0xb4 // read 64 bytes, get 30
-#define SURFACE_b6 0xb6 // write 42 bytes
-
-#define SURFACE_COMMIT 0xc3 // maybe trigger calibration save? send 4 bytes
-#define SURFACE_STATUS 0xb5 // read 64 bytes, get 41, used for completion polling
-
-
-
 // get version info
 void surface_get_version( usb_dev_handle* handle, uint16_t index ) {
 	uint8_t buf[13]; buf[12] = 0;
@@ -126,6 +107,82 @@ void surface_init( usb_dev_handle* handle ) {
 
 	surface_get_version(handle, 0x03);
 }
+
+/**************************** CALIBRATION ***************************/
+
+#define SURFACE_PEEK        0xc4 // read 48 bytes internal state - perhaps NV memory?
+#define SURFACE_POKE        0xc5 // used for calibration setup - seems to access NV memory like c4, or maybe I2C in general
+	#define SP_INIT1 0x05
+	#define SP_INIT2 0x07
+	#define SP_INIT3 0x17
+	#define SP_NVW1  0x32 // always with index 0x96 or 0xae, indicates nv write
+	#define SP_NVW2  0x72 // index == offset into nv memory
+	#define SP_NVW3  0xb2 // index == value to write into nv memory
+
+#define SURFACE_UNKNOWN3 0xb4 // read 64 bytes, get 30
+#define SURFACE_UNKNOWN4 0xb6 // write 42 bytes
+
+#define SURFACE_COMMIT 0xc3 // maybe trigger calibration save? send 4 bytes
+#define SURFACE_STATUS 0xb5 // read 64 bytes, get 41, used for completion polling
+
+void surface_peek( usb_dev_handle* handle ) {
+	uint8_t buf[48];
+	usb_control_msg( handle, 0xC0, SURFACE_PEEK, 0x00, 0x00, (char*)buf, 48, timeout );
+	for (int j = 0; j < 3; j++) {
+		for (int i = 0; i < 16; i++) printf("0x%02x ", buf[j*16+i]);
+		printf("\n");
+	}
+}
+
+void surface_calib_setup( usb_dev_handle* handle ) {
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x85, NULL, 0, timeout );
+}
+
+void surface_calib_finish( usb_dev_handle* handle ) {
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x80, NULL, 0, timeout );
+}
+
+void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,   0x96, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout );
+}
+
+// value was: 0xc7, 0xb7, 0xa7, 0x97, 0x98, 0x99
+void surface_poke_sequence1( usb_dev_handle* handle, uint8_t value ) {
+	for (int i = 0; i < 4; i++)
+		surface_poke( handle, 0x1c+i, value );
+}
+
+// value was: 0x20, 0xff, 0x80, 0xff
+void surface_poke_sequence2( usb_dev_handle* handle, uint8_t value ) {
+	for (int i = 0; i < 8; i++)
+		surface_poke( handle, 0x08+(2*i), value );
+}
+
+void surface_calib_start( usb_dev_handle* handle ) {
+
+	surface_peek( handle );
+
+	surface_calib_setup( handle );
+	surface_poke( handle, 0x17, 0x00 );
+
+	surface_poke_sequence1( handle, 0xc7 );
+
+	surface_peek( handle );
+
+	surface_poke_sequence2( handle, 0x20 );
+}
+
+void surface_calib_end( usb_dev_handle* handle ) {
+	surface_calib_finish( handle );
+	surface_poke( handle, 0x17, 0x04 );
+}
+
 
 
 /************************** IMAGE FUNCTIONS *************************/
