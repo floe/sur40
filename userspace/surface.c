@@ -173,6 +173,7 @@ void surface_calib_start( usb_dev_handle* handle ) {
 
 	surface_poke_sequence1( handle, 0xc7 );
 
+	usleep(500);
 	surface_peek( handle );
 
 	surface_poke_sequence2( handle, 0x20 );
@@ -187,19 +188,19 @@ void surface_calib_end( usb_dev_handle* handle ) {
 
 /************************** IMAGE FUNCTIONS *************************/
 
-int surface_get_image( usb_dev_handle* handle, uint8_t* image ) {
+int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufsize ) {
 
 	uint8_t buffer[512];
-	int result, bufpos = 0;
+	unsigned int result, bufpos = 0;
 
 	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(buffer), timeout );
 	if (result != sizeof(surface_image)) { printf("transfer size mismatch\n"); return -1; }
 
 	surface_image* header = (surface_image*)buffer;
 	if (header->magic != VIDEO_HEADER_MAGIC) { printf("image magic mismatch\n"); return -1; }
-	if (header->size  != VIDEO_BUFFER_SIZE ) { printf("image size  mismatch\n"); return -1; }
+	if (header->size  != bufsize           ) { printf("image size  mismatch\n"); return -1; }
 
-	while (bufpos < VIDEO_BUFFER_SIZE) {
+	while (bufpos < bufsize) {
 		result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)(image+bufpos), VIDEO_PACKET_SIZE, timeout );
 		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
 		bufpos += result;

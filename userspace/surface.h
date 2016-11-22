@@ -101,8 +101,12 @@ void surface_get_sensors( usb_dev_handle* handle );
 void surface_init( usb_dev_handle* handle );
 
 // retrieve raw data from surface
-int surface_get_image( usb_dev_handle* handle, uint8_t* image );
+int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufsize = VIDEO_BUFFER_SIZE );
 int surface_get_blobs( usb_dev_handle* handle, surface_blob* blob );
+
+// calibration: start/finish
+void surface_calib_start( usb_dev_handle* handle );
+void surface_calib_end( usb_dev_handle* handle );
 
 #endif // _SURFACE_H_
 

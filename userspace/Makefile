@@ -1,6 +1,6 @@
 CFLAGS=-ggdb -Wall
 
-all: test view
+all: test view calib
 
 clean:
 	rm *.o test view
@@ -12,5 +12,8 @@ test: test.o surface.o
 	g++ $(CFLAGS) -o $@ $^ -lusb
 	
 view: view.o surface.o
+	g++ $(CFLAGS) -o $@ $^ -lusb -lGL -lGLU -lglut
+
+calib: calib.o surface.o
 	g++ $(CFLAGS) -o $@ $^ -lusb -lGL -lGLU -lglut
 
