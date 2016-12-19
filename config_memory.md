@@ -27,3 +27,19 @@
 0x2d: 00 00 <- rarely 10 00 or 50 00
 0x2f: 27    <- maybe some sort of counter 
 ```
+
+The following sequence (first offset - value) is executed during calibration. Looks somehow like a search
+algorithm: first select the rough overall gain in 0x1c-0x1f, then adjust the fine gain in 0x08-0x16.
+```
+1c c7
+08 20
+1c b7
+1c a7
+1c 97
+08 ff
+1c 98
+1c 99
+1c 99 <- switch to dark side of calibration board happens here?
+08 80
+08 ff
+```
