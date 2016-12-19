@@ -5,3 +5,7 @@ kernel/*.mod.c
 kernel/.*.cmd
 kernel/*.ko
 kernel/*.o
+userspace/*.o
+userspace/calib
+userspace/view
+userspace/test

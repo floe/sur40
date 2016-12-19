@@ -194,14 +194,23 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 	unsigned int result, bufpos = 0;
 
 	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(buffer), timeout );
-	if (result != sizeof(surface_image)) { printf("transfer size mismatch\n"); return -1; }
+	if (result <  sizeof(surface_image)) { printf("transfer size mismatch\n"); return -1; }
 
 	surface_image* header = (surface_image*)buffer;
+
+	// printf("header: magic %08x, id %d, size %d, timestamp %d\n", header->magic, header->packet_id, header->size, header->timestamp);
+
 	if (header->magic != VIDEO_HEADER_MAGIC) { printf("image magic mismatch\n"); return -1; }
 	if (header->size  != bufsize           ) { printf("image size  mismatch\n"); return -1; }
 
+	if (result > sizeof(surface_image)) {
+		bufpos = result-sizeof(surface_image);
+		memmove(buffer,buffer+sizeof(surface_image),bufpos);
+	}
+
 	while (bufpos < bufsize) {
-		result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)(image+bufpos), VIDEO_PACKET_SIZE, timeout );
+		int rest = bufsize-bufpos; if (rest > VIDEO_PACKET_SIZE) rest = VIDEO_PACKET_SIZE;
+		result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)(image+bufpos), rest, timeout );
 		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
 		bufpos += result;
 	}
