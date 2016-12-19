@@ -15,7 +15,7 @@
 0x18: 75    <- changes dynamically, status byte?
 0x19: 01 6f
 0x1b: 38    <- rarely 0x68 or 0x78
-0x1c: 99 99 \_ somehow related to gain 
+0x1c: 99 99 \_ some sort of global gain setting? probably needs to be > 0x80, and only seems to work properly if all values equal
 0x1e: 99 99 / 
 0x20: 21 2f 
 0x22: 00 00 
