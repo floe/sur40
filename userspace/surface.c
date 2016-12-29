@@ -134,11 +134,9 @@ void surface_peek( usb_dev_handle* handle ) {
 	usb_control_msg( handle, 0xC0, SURFACE_PEEK, 0x00, 0x00, (char*)buf, 48, timeout );
 	for (int i = 0; i < 48; i++) printf("0x%02x ", buf[i]);
 	printf("\n");
-}
-
-// TODO: sleep for at least 10 ms after every command
+	
 void surface_calib_setup( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout ); // CaptureMode = RawFullFrame
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x85, NULL, 0, timeout );
 }
@@ -150,9 +148,9 @@ void surface_calib_finish( usb_dev_handle* handle ) {
 }
 
 void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,   0x96, NULL, 0, timeout );
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout );
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,   0x96, NULL, 0, timeout ); usleep(10000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(10000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(10000);
 }
 
 int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask ) {
@@ -203,6 +201,18 @@ int surface_read_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] ) {
 }
 
 // value was: 0xc7, 0xb7, 0xa7, 0x97, 0x98, 0x99
+// value & 0xF0 = VideoVoltage (0-15), value & 0x0F = VSBias (0-9)
+// default = 0xc7
+// part 1 of calibration (VideoVoltage): adjust avg. brightness to between 5 and 16
+// - start with value = 0x0c
+// - if avg. brightness < 5: value++
+// - else if avg. brightness < 16: break
+// - else value--
+// part 2 of calibration (VSBias):
+// - calculate avg. brightness, count all pixels > 235
+// - if avg. < 155: value++
+// - else if avg. < 210 && % of bright pixels < 4.1: break
+// - else value--
 void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value ) {
 	for (int i = 0; i < 4; i++)
 		surface_poke( handle, 0x1c+i, value );
@@ -219,7 +229,7 @@ void surface_calib_start( usb_dev_handle* handle ) {
 	surface_peek( handle );
 
 	surface_calib_setup( handle );
-	surface_poke( handle, 0x17, 0x00 );
+	surface_poke( handle, 0x17, 0x00 ); // WledPwmClkHz = 0
 
 	surface_set_vsvideo( handle, 0xc7 );
 
@@ -231,7 +241,7 @@ void surface_calib_start( usb_dev_handle* handle ) {
 
 void surface_calib_end( usb_dev_handle* handle ) {
 	surface_calib_finish( handle );
-	surface_poke( handle, 0x17, 0x04 );
+	surface_poke( handle, 0x17, 0x04 ); // WledPwmClkHz = 4
 }
 
 

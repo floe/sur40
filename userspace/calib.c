@@ -80,6 +80,8 @@ void display() {
 	glTranslatef(0,VIDEO_RES_Y,0);
 	glScalef(1.0f, -1.0f, 1.0f);
 
+    // always 960 pixels wide, in calibration mode double height
+    // apparently 4 subfields (QRST), interlaced row-wise as QQRRSSTT 
 	surface_get_image( s40, image, ((mode == GL_UNSIGNED_BYTE) ? VIDEO_BUFFER_SIZE : VIDEO_BUFFER_SIZE*2) );
 	//int bc = surface_get_blobs( s40, blobs );
 
@@ -190,5 +192,3 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
-
-
