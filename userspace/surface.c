@@ -155,6 +155,53 @@ void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout );
 }
 
+int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask ) {
+	uint8_t buffer[64];
+	for ( int i = 0; i < tries; i++ ) {
+		int result = usb_control_msg( handle, SURFACE_BUS_STATUS, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+		if (result < 0) return result;
+		if ((buffer[offset] & mask) == 0) return 1;
+		usleep(5000);
+	}
+	return 0;
+}
+
+// maybe only 2 pages? calibration starts at page 0x190 
+int surface_read_spi_flash( usb_dev_handle* handle, uint8_t page, uint8_t buffer[4096] ) {
+
+	uint32_t request[2] = { 0x04ff2000, 4096 };
+	int direction = 0; // SPI to DDR
+	
+	usb_control_msg( handle, SURFACE_DDR_READ_ENABLE, 0, true, NULL, 0, timeout );
+	usb_control_msg( handle, SURFACE_SPI_TRANSFER, page, direction, (char*)request, 4, timeout );
+	surface_poll_completion( handle, 20, 1, 0x80 );
+	usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
+	
+	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
+}
+
+int surface_read_usb_flash( usb_dev_handle* handle, int offset, uint8_t buffer[64] ) {
+	return usb_control_msg( handle, SURFACE_I2C_READ, offset,	 0, (char*)buffer, 64, timeout );
+}
+
+int surface_read_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] ) {
+	
+	uint32_t request[2] = { 0x05000000, 0x10e000 };
+	int result, bufsize = 0x10e000, bufpos = 0, blocksize = 2048;
+	
+	usb_control_msg( handle, SURFACE_DDR_READ_ENABLE,  0, true, NULL, 0, timeout );
+	usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
+	
+	while (bufpos < bufsize) {
+		int rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
+		result = usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)(buffer+bufpos), rest, timeout );
+		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
+		bufpos += result;
+	}
+	
+	return bufpos;
+}
+
 // value was: 0xc7, 0xb7, 0xa7, 0x97, 0x98, 0x99
 void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value ) {
 	for (int i = 0; i < 4; i++)
@@ -261,4 +308,3 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 
 	return need_blobs;
 }
-
