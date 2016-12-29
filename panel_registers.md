@@ -11,7 +11,7 @@
 0x09: 00 ff |
 0x0b: 00 ff |
 0x0d: 00 ff |
-0x0f: 00 ff  _ second byte: gain for horizontal stripe of ~ 68 pixels, first byte: always zero
+0x0f: 00 ff  _ second byte: IR intensity for horizontal stripe of ~ 68 pixels, first byte: always zero
 0x11: 00 ff |
 0x13: 00 ff |
 0x15: 00 ff // Pwm8Start / Pwm8Width

@@ -115,8 +115,6 @@ bulk read 2 (large) images from endpoint 0x82
 
 // end of ComputeVsBias
 
-### maybe switch to dark side of calib board here
-
 control sequence @ 32623 {
 	
 	// SaveVideo0Bias
@@ -143,8 +141,6 @@ control sequence @ 32623 {
 // "acquiring gray reference image"
 bulk read 3 (large) images from endpoint 0x82
 
-control sequence @ 38768 {
-
 	// SetIrStrength(0xFF)
 	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 80 00 80 00 80 00 80 00
 	                                        80 00 80 00 80 00 80 00 75 01 6f 38 99 99 99 99
@@ -158,7 +154,6 @@ control sequence @ 38768 {
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 12 00 00 00, 40 c5 b2 00 ff 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 14 00 00 00, 40 c5 b2 00 ff 00 00 00
 	40 c5 32 00 96 00 00 00, 40 c5 72 00 16 00 00 00, 40 c5 b2 00 ff 00 00 00
-}
 
 // "acquiring white reference image"
 bulk read 3 (large) images from endpoint 0x82
@@ -210,6 +205,7 @@ AccumulateWhite {
 	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
 	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
 
+	// WriteToDDR
 	[bulk write 540 x 2048 bytes (with headers) to endpoint 0x08]
   }
 }
