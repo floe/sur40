@@ -148,7 +148,8 @@ void surface_calib_finish( usb_dev_handle* handle ) {
 }
 
 void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,   0x96, NULL, 0, timeout ); usleep(10000);
+	uint8_t index = 0x96; // 0xae for permanent write
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,  index, NULL, 0, timeout ); usleep(10000);
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(10000);
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(10000);
 }
