@@ -21,8 +21,8 @@ int timeout = 1000;
 #define ENDPOINT_VIDEO 0x82
 #define ENDPOINT_BLOBS 0x86
 
-#define ENDPOINT_CALIB_READ 0x84
-#define ENDPOINT_CALIB_SEND 0x08
+#define ENDPOINT_DDR_READ  0x84
+#define ENDPOINT_DDR_WRITE 0x08
 
 #define VIDEO_HEADER_MAGIC 0x46425553
 #define VIDEO_PACKET_SIZE  16384
@@ -119,11 +119,15 @@ void surface_init( usb_dev_handle* handle ) {
 	#define SP_NVW2  0x72 // index == offset into memory
 	#define SP_NVW3  0xb2 // index == value to write into memory
 
-#define SURFACE_UNKNOWN3 0xb4 // read 64 bytes, get 30
-#define SURFACE_UNKNOWN4 0xb6 // write 42 bytes
+#define SURFACE_DDR_READ_ENABLE  0x40,0xb1 // enable/disable read from FPGA memory
+#define SURFACE_DDR_READ_REQUEST 0x40,0xc4 // read buffer from FPGA memory
 
-#define SURFACE_COMMIT 0xc3 // maybe trigger calibration save? send 4 bytes
-#define SURFACE_STATUS 0xb5 // read 64 bytes, get 41, used for completion polling
+#define SURFACE_GET_PARAMS 0xc0,0xb4 // read key-value store: read 64 bytes, get 30
+#define SURFACE_SET_PARAMS 0x40,0xb6 // write key-value store: write 42 bytes
+
+#define SURFACE_SPI_TRANSFER 0x40,0xc3 // maybe trigger calibration save? send 4 bytes
+#define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, get 41, used for completion polling
+#define SURFACE_I2C_READ     0xc0,0xb6
 
 void surface_peek( usb_dev_handle* handle ) {
 	uint8_t buf[48];
@@ -132,6 +136,7 @@ void surface_peek( usb_dev_handle* handle ) {
 	printf("\n");
 }
 
+// TODO: sleep for at least 10 ms after every command
 void surface_calib_setup( usb_dev_handle* handle ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout );
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
@@ -151,13 +156,13 @@ void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
 }
 
 // value was: 0xc7, 0xb7, 0xa7, 0x97, 0x98, 0x99
-void surface_poke_sequence1( usb_dev_handle* handle, uint8_t value ) {
+void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value ) {
 	for (int i = 0; i < 4; i++)
 		surface_poke( handle, 0x1c+i, value );
 }
 
 // value was: 0x20, 0xff, 0x80, 0xff
-void surface_poke_sequence2( usb_dev_handle* handle, uint8_t value ) {
+void surface_set_irlevel( usb_dev_handle* handle, uint8_t value ) {
 	for (int i = 0; i < 8; i++)
 		surface_poke( handle, 0x08+(2*i), value );
 }
@@ -169,12 +174,12 @@ void surface_calib_start( usb_dev_handle* handle ) {
 	surface_calib_setup( handle );
 	surface_poke( handle, 0x17, 0x00 );
 
-	surface_poke_sequence1( handle, 0xc7 );
+	surface_set_vsvideo( handle, 0xc7 );
 
 	usleep(500);
 	surface_peek( handle );
 
-	surface_poke_sequence2( handle, 0x20 );
+	surface_set_irlevel( handle, 0x20 );
 }
 
 void surface_calib_end( usb_dev_handle* handle ) {
@@ -191,7 +196,7 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 	uint8_t buffer[512];
 	unsigned int result, bufpos = 0;
 
-	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(buffer), timeout );
+	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(surface_image), timeout );
 	if (result <  sizeof(surface_image)) { printf("transfer size mismatch\n"); return -1; }
 
 	surface_image* header = (surface_image*)buffer;
