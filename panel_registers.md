@@ -17,11 +17,11 @@
 0x15: 00 ff // Pwm8Start / Pwm8Width
 
 0x17: 04    // WledPwmClkHz <- 0x00 for calibration, 0x04 for normal operation
-0x18: 75    <- changes dynamically, status byte?
+0x18: 75    // WledPwmDuty <- 0xFF = full brightness, 0x00 = dark
 0x19: 01 6f
 0x1b: 38    <- rarely 0x68 or 0x78
 0x1c: 99 99 // VsVideo01 / VsVideo02 \_ some sort of global gain setting? probably needs to be > 0x80, and only seems to work properly if all values equal
-0x1e: 99 99 // VsVideo03 / VsVideo04 /  & 0xF0 = VideoVoltage, & 0x0F = VS Bias
+0x1e: 99 99 // VsVideo03 / VsVideo04 /  & 0xF0 = VideoVoltage (0x01-0x0F), & 0x0F = VS Bias (0x01-0x09)
 0x20: 21    // CodeVersion
 0x21: 2f    // RoDataCtrl1: & 0x03 = Visible Gain, & 0x0c = IR Gain, & 0x10 = Interlace Enable
 0x22: 00

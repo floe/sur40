@@ -134,6 +134,7 @@ void surface_peek( usb_dev_handle* handle ) {
 	usb_control_msg( handle, 0xC0, SURFACE_PEEK, 0x00, 0x00, (char*)buf, 48, timeout );
 	for (int i = 0; i < 48; i++) printf("0x%02x ", buf[i]);
 	printf("\n");
+}
 	
 void surface_calib_setup( usb_dev_handle* handle ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout ); // CaptureMode = RawFullFrame
@@ -142,16 +143,16 @@ void surface_calib_setup( usb_dev_handle* handle ) {
 }
 
 void surface_calib_finish( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout );
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout ); // CaptureMode = Normalized
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout );
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x80, NULL, 0, timeout );
 }
 
 void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
 	uint8_t index = 0x96; // 0xae for permanent write
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,  index, NULL, 0, timeout ); usleep(10000);
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(10000);
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(10000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,  index, NULL, 0, timeout ); usleep(20000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(20000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(20000);
 }
 
 int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask ) {
@@ -226,23 +227,15 @@ void surface_set_irlevel( usb_dev_handle* handle, uint8_t value ) {
 }
 
 void surface_calib_start( usb_dev_handle* handle ) {
-
-	surface_peek( handle );
-
 	surface_calib_setup( handle );
 	surface_poke( handle, 0x17, 0x00 ); // WledPwmClkHz = 0
-
-	surface_set_vsvideo( handle, 0xc7 );
-
-	usleep(500);
 	surface_peek( handle );
-
-	surface_set_irlevel( handle, 0x20 );
 }
 
 void surface_calib_end( usb_dev_handle* handle ) {
 	surface_calib_finish( handle );
 	surface_poke( handle, 0x17, 0x04 ); // WledPwmClkHz = 4
+	surface_peek( handle );
 }
 
 
@@ -254,7 +247,7 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 	uint8_t buffer[512];
 	unsigned int result, bufpos = 0;
 
-	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(surface_image), timeout );
+	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(buffer), timeout );
 	if (result <  sizeof(surface_image)) { printf("transfer size mismatch\n"); return -1; }
 
 	surface_image* header = (surface_image*)buffer;

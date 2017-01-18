@@ -29,7 +29,11 @@
 
 usb_dev_handle* s40;
 GLuint texture;
-int mode = GL_UNSIGNED_BYTE;
+int mode = 1;
+
+int voltage = 0x0c;
+int bias    = 0x07;
+bool set = false;
 
 
 void output( int x, int y, char *string ) {
@@ -77,25 +81,25 @@ void display() {
   // move to origin
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-	glTranslatef(0,VIDEO_RES_Y,0);
+	glTranslatef(0,VIDEO_RES_Y*mode,0);
 	glScalef(1.0f, -1.0f, 1.0f);
 
     // always 960 pixels wide, in calibration mode double height
     // apparently 4 subfields (QRST), interlaced row-wise as QQRRSSTT 
-	surface_get_image( s40, image, ((mode == GL_UNSIGNED_BYTE) ? VIDEO_BUFFER_SIZE : VIDEO_BUFFER_SIZE*2) );
+	surface_get_image( s40, image, VIDEO_BUFFER_SIZE*mode );
 	//int bc = surface_get_blobs( s40, blobs );
 
 	glEnable(GL_TEXTURE_2D);
 
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, 1, VIDEO_RES_X, VIDEO_RES_Y, 0, GL_LUMINANCE, mode, image);
+	glTexImage2D(GL_TEXTURE_2D, 0, 1, VIDEO_RES_X, VIDEO_RES_Y*mode, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image);
 
 	glBegin(GL_TRIANGLE_FAN);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	glTexCoord2f(0, 0); glVertex3f(0,0,0);
 	glTexCoord2f(1, 0); glVertex3f(VIDEO_RES_X,0,0);
-	glTexCoord2f(1, 1); glVertex3f(VIDEO_RES_X,VIDEO_RES_Y,0);
-	glTexCoord2f(0, 1); glVertex3f(0,VIDEO_RES_Y,0);
+	glTexCoord2f(1, 1); glVertex3f(VIDEO_RES_X,VIDEO_RES_Y*mode,0);
+	glTexCoord2f(0, 1); glVertex3f(0,VIDEO_RES_Y*mode,0);
 	glEnd();
 
 	glDisable(GL_TEXTURE_2D);
@@ -121,19 +125,31 @@ void resize(int w, int h) {
 
 void keyboard(unsigned char key, int x, int y) {
   switch (key) {
-    case 'q': 
+		case 'q':
 			//usb_reset( s40 ); sleep(1);
 			usb_close( s40 );
 			exit(0); 
 			break;
 		case 'c':
 			surface_calib_start( s40 );
-			mode = GL_UNSIGNED_SHORT;
+			mode = 2;
 			break;
 		case 'e':
 			surface_calib_end( s40 );
-			mode = GL_UNSIGNED_BYTE;
+			mode = 1;
 			break;
+
+		case '<': set = true; voltage++; if (voltage > 15) voltage = 15; break;
+		case '>': set = true; voltage--; if (voltage <  1) voltage =  1; break;
+
+		case '+': set = true; bias++; if (bias > 9) bias = 9; break;
+		case '-': set = true; bias--; if (bias < 1) bias = 1; break;
+  }
+  if (set) {
+	surface_set_vsvideo( s40, (voltage << 4) | bias );
+	printf("setting vsvideo: %02x ",(voltage << 4) | bias );
+	set = false;
+	surface_peek(s40);
   }
 }
 
@@ -174,7 +190,7 @@ int main(int argc, char* argv[]) {
 	s40 = usb_get_device_handle( ID_MICROSOFT, ID_SURFACE );
 	surface_init( s40 );
 
- 	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y);
+	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y*2);
 	glutInit(&argc,argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH );
 	glutCreateWindow("surfaceview");
