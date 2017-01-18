@@ -26,6 +26,22 @@
 
 #include <GL/glut.h>
 
+void deinterlace( uint8_t* input, uint8_t* output ) {
+
+	int in_off = 0, out_off = 0;
+
+	for (int y = 0; y < VIDEO_RES_Y*2; y+=8) {
+
+		in_off = y * VIDEO_RES_X;
+		out_off = y/4 * VIDEO_RES_X;
+
+		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
+		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
+		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
+		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
+	}
+}
+
 
 usb_dev_handle* s40;
 GLuint texture;
@@ -73,6 +89,7 @@ void idle() { glutPostRedisplay(); }
 void display() {
 
 	uint8_t image[VIDEO_BUFFER_SIZE*2];
+	uint8_t image2[VIDEO_BUFFER_SIZE*2];
 	surface_blob blobs[256];
 
   // clear buffers
@@ -89,10 +106,12 @@ void display() {
 	surface_get_image( s40, image, VIDEO_BUFFER_SIZE*mode );
 	//int bc = surface_get_blobs( s40, blobs );
 
+	if (mode == 2) deinterlace(image,image2);
+
 	glEnable(GL_TEXTURE_2D);
 
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, 1, VIDEO_RES_X, VIDEO_RES_Y*mode, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image);
+	glTexImage2D(GL_TEXTURE_2D, 0, 1, VIDEO_RES_X, VIDEO_RES_Y*mode, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, (mode == 2 ? image2 : image));
 
 	glBegin(GL_TRIANGLE_FAN);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
