@@ -20,8 +20,10 @@
 0x18: 75    // WledPwmDuty <- 0xFF = full brightness, 0x00 = dark
 0x19: 01 6f
 0x1b: 38    <- rarely 0x68 or 0x78
-0x1c: 99 99 // VsVideo01 / VsVideo02 \_ some sort of global gain setting? probably needs to be > 0x80, and only seems to work properly if all values equal
-0x1e: 99 99 // VsVideo03 / VsVideo04 /  & 0xF0 = VideoVoltage (0x01-0x0F), & 0x0F = VS Bias (0x01-0x09)
+0x1c: 99    // VsVideo01  global sensor parameters, only seems to work properly if all values equal
+0x1d: 99    // VsVideo02  value & 0xF0 = VideoVoltage (0x01-0x0F), value & 0x0F = VS Bias (0x01-0x09)
+0x1e: 99    // VsVideo03  VideoVoltage ~ black level (?)
+0x1f: 99    // VsVideo04  VS Bias      ~ sensor gain (?)
 0x20: 21    // CodeVersion
 0x21: 2f    // RoDataCtrl1: & 0x03 = Visible Gain, & 0x0c = IR Gain, & 0x10 = Interlace Enable
 0x22: 00
@@ -38,18 +40,9 @@
 0x2f: 27    // PanelTemp
 ```
 
-The following sequence (first offset - value) is executed during calibration. Looks somehow like a search
-algorithm: first select the rough overall gain in 0x1c-0x1f, then adjust the fine gain in 0x08-0x16.
+DDR memory layout:
 ```
-1c c7
-08 20
-1c b7
-1c a7
-1c 97
-08 ff
-1c 98
-1c 99
-1c 99 <- switch to dark side of calibration board happens here?
-08 80
-08 ff
+0x4ff0000 - scratch buffer for transfers to SPI flash (4k)
+0x4ff2000 - scratch buffer for transfers from SPI flash (4k)
+0x5000000 - calibration data (0x10e000)
 ```
