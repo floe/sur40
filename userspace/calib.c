@@ -141,21 +141,21 @@ void resize(int w, int h) {
   glutPostRedisplay();
 }
 
-uint8_t calibbuf[0x10e000];
+surface_calib calibbuf;
 
 void read_calib() {
-	int res = surface_read_calib(s40,calibbuf);
+	int res = surface_read_calib(s40,&calibbuf);
 	printf("read_calib result: %x\n",res);
 	FILE* foo = fopen("calib.raw","w");
-	fwrite(calibbuf, 0x10e000, 1, foo);
+	fwrite(&calibbuf, 0x10e000, 1, foo);
 	fclose(foo);
 }
 
 void write_calib() {
-	calibbuf[0x798] = 'f';
-	calibbuf[0x799] = 'o';
-	calibbuf[0x79a] = 'o';
-	int res = surface_write_calib(s40,calibbuf);
+	calibbuf.row[0].version[4] = 'f';
+	calibbuf.row[0].version[5] = 'o';
+	calibbuf.row[0].version[6] = 'o';
+	int res = surface_write_calib(s40,&calibbuf);
 	printf("write_calib result: %x\n",res);
 }
 
