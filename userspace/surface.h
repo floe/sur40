@@ -88,6 +88,38 @@ struct surface_sensors {
 };
 
 
+// internal calibration for one row
+struct surface_row_calib {
+
+	uint16_t calib[VIDEO_RES_X]; // MSB = black level, LSB = white level?
+
+	// fields below are only valid in first row, 0xFF otherwise
+	uint8_t  padding0[20];
+
+	uint8_t  version[16];   // version string ("IFC2.0.0.0")
+	uint8_t  padding1[4];
+
+	uint64_t time_local;    // calibration time (local) as 64-bit integer
+	uint8_t  padding2[2];
+
+	uint64_t time_utc;      // calibration time (UTC) as 64-bit integer
+	uint8_t  padding3[2];
+
+	uint8_t  temperature;   // panel temperature at calibration time
+	uint8_t  padding4[67];
+};
+
+// in first row:
+// calib[0] = 0xCACA
+// calib[1] = b1.......1.......
+// paddingN[..] = 0x00
+
+// internal calibration block
+struct surface_calib {
+	surface_row_calib row[VIDEO_RES_Y];
+};
+
+
 // helper to find a device by vendor and product
 usb_dev_handle* usb_get_device_handle( int vendor, int product );
 
@@ -115,4 +147,3 @@ void surface_peek( usb_dev_handle* handle );
 int surface_read_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] );
 
 #endif // _SURFACE_H_
-

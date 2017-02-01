@@ -129,11 +129,30 @@ void surface_init( usb_dev_handle* handle ) {
 #define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, get 41, used for completion polling
 #define SURFACE_I2C_READ     0xc0,0xb6
 
+/* rough calibration sequence:
+	- column correction (with white board)
+	- accumulate white (with white board)
+	- accumulate black (with black board)
+*/
+
 void surface_peek( usb_dev_handle* handle ) {
 	uint8_t buf[48];
 	usb_control_msg( handle, 0xC0, SURFACE_PEEK, 0x00, 0x00, (char*)buf, 48, timeout );
 	for (int i = 0; i < 48; i++) printf("0x%02x ", buf[i]);
 	printf("\n");
+}
+
+void surface_calib_accumulate_white( usb_dev_handle* handle ) {
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x04, NULL, 0, timeout ); // AccumulateWhite
+	usleep(5500000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
+	// ... followed by AdjustWhite
+}
+
+void surface_calib_accumulate_black( usb_dev_handle* handle ) {
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x02, NULL, 0, timeout ); // AccumulateBlack
+	usleep(4500000);
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
 }
 	
 void surface_calib_setup( usb_dev_handle* handle ) {
@@ -149,6 +168,7 @@ void surface_calib_finish( usb_dev_handle* handle ) {
 }
 
 void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
+	// writes i2c register, device 0x96 = panel, device 0xae = eeprom
 	uint8_t index = 0x96; // 0xae for permanent write
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,  index, NULL, 0, timeout ); usleep(20000);
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(20000);
