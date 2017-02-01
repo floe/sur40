@@ -112,9 +112,9 @@ void surface_init( usb_dev_handle* handle ) {
 
 #define SURFACE_PEEK     0xc4 // read 48 bytes internal state - perhaps controller memory?
 #define SURFACE_POKE     0xc5 // used for calibration setup - seems to access memory like c4, or maybe I2C in general
-	#define SP_INIT1 0x05
-	#define SP_INIT2 0x07
-	#define SP_INIT3 0x17
+	#define SP_INIT1 0x05 // host interface module
+	#define SP_INIT2 0x07 // image corrector module
+	#define SP_INIT3 0x17 // ... unknown ...
 	#define SP_NVW1  0x32 // always with index 0x96 or 0xae, indicates memory write (0xae == permanent write?)
 	#define SP_NVW2  0x72 // index == offset into memory
 	#define SP_NVW3  0xb2 // index == value to write into memory
@@ -143,7 +143,7 @@ void surface_calib_setup( usb_dev_handle* handle ) {
 }
 
 void surface_calib_finish( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout ); // CaptureMode = Normalized
+	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout ); // CaptureMode = Corrected
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout );
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x80, NULL, 0, timeout );
 }
@@ -166,7 +166,7 @@ int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int 
 	return 0;
 }
 
-// maybe only 2 pages? calibration starts at page 0x190 
+// likely 0x190 pages of fpga bitstream (?), calibration starts at page 0x190
 int surface_read_spi_flash( usb_dev_handle* handle, uint8_t page, uint8_t buffer[4096] ) {
 
 	uint32_t request[2] = { 0x04ff2000, 4096 };
