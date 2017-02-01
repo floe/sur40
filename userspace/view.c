@@ -30,6 +30,10 @@
 usb_dev_handle* s40;
 GLuint texture;
 
+int curframe = 0;
+int lasttime = 0;
+int lastframe = 0;
+double fps = 0.0;
 
 void output( int x, int y, char *string ) {
   glRasterPos2f(x, y);
@@ -69,6 +73,18 @@ void display() {
 
 	uint8_t image[VIDEO_BUFFER_SIZE];
 	surface_blob blobs[256];
+	char buffer[128];
+
+	int curtime = glutGet( GLUT_ELAPSED_TIME );
+	curframe++;
+
+	if ((curtime - lasttime) >= 1000) {
+		fps = (1000.0*(curframe-lastframe))/((double)(curtime-lasttime));
+		lasttime  = curtime;
+		lastframe = curframe;
+		snprintf(buffer,sizeof(buffer),"FPS: %f",fps);
+		printf("%s\n",buffer);
+	}
 
   // clear buffers
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -120,6 +136,7 @@ void display() {
 		output(blobs[i].ctr_x/2, blobs[i].ctr_y/2,buf);
 	}
 
+	output(20,20,buffer);
 
   // redraw
   glutSwapBuffers();
