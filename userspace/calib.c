@@ -33,12 +33,12 @@ void deinterlace( uint8_t* input, uint8_t* output ) {
 	for (int y = 0; y < VIDEO_RES_Y*2; y+=8) {
 
 		in_off = y * VIDEO_RES_X;
-		out_off = y/4 * VIDEO_RES_X;
+		out_off = y/2 * VIDEO_RES_X;
 
-		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
-		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
-		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
-		memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
+		memcpy( output+out_off, input+in_off, VIDEO_RES_X*4 ); in_off += VIDEO_RES_X * 4; out_off += VIDEO_RES_X * VIDEO_RES_Y;
+		memcpy( output+out_off, input+in_off, VIDEO_RES_X*4 ); in_off += VIDEO_RES_X * 4; out_off += VIDEO_RES_X * VIDEO_RES_Y;
+		//memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
+		//memcpy( output+out_off, input+in_off, VIDEO_RES_X*2 ); in_off += VIDEO_RES_X * 2; out_off += VIDEO_RES_X * VIDEO_RES_Y / 2;
 	}
 }
 
