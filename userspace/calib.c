@@ -155,8 +155,18 @@ void write_calib() {
 	calibbuf.row[0].version[4] = 'f';
 	calibbuf.row[0].version[5] = 'o';
 	calibbuf.row[0].version[6] = 'o';
+	calibbuf.row[539].padding4[66] = 0xFE;
 	int res = surface_write_calib(s40,&calibbuf);
 	printf("write_calib result: %x\n",res);
+}
+
+void read_usb_fw() {
+	uint8_t usb_fw[8192];
+	int res = surface_read_usb_flash(s40,usb_fw);
+	printf("read_fw result: %x\n",res);
+	FILE* foo = fopen("usb_fw.raw","w");
+	fwrite(usb_fw, 8192, 1, foo);
+	fclose(foo);
 }
 
 void keyboard(unsigned char key, int x, int y) {
@@ -181,6 +191,10 @@ void keyboard(unsigned char key, int x, int y) {
 
 		case 'w':
 			write_calib();
+			break;
+
+		case 'R':
+			read_usb_fw();
 			break;
 
 		case '<': set = true; voltage++; if (voltage > 15) voltage = 15; break;

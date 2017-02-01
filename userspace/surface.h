@@ -147,4 +147,6 @@ void surface_peek( usb_dev_handle* handle );
 int surface_read_calib( usb_dev_handle* handle, surface_calib* calib );
 int surface_write_calib( usb_dev_handle* handle, surface_calib* calib );
 
+int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] );
+
 #endif // _SURFACE_H_

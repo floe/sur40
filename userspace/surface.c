@@ -200,8 +200,14 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint8_t page, uint8_t buffer
 	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
 }
 
-int surface_read_usb_flash( usb_dev_handle* handle, int offset, uint8_t buffer[64] ) {
-	return usb_control_msg( handle, SURFACE_I2C_READ, offset,	 0, (char*)buffer, 64, timeout );
+int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
+	int offset = 0;
+	while (offset < 8192) {
+		int result = usb_control_msg( handle, SURFACE_I2C_READ, offset,	0, (char*)(buffer+offset), 64, timeout );
+		if (result < 64) return result;
+		offset += result;
+	}
+	return offset;
 }
 
 int surface_read_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
