@@ -145,5 +145,6 @@ void surface_set_irlevel( usb_dev_handle* handle, uint8_t value );
 void surface_peek( usb_dev_handle* handle );
 
 int surface_read_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] );
+int surface_write_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] );
 
 #endif // _SURFACE_H_
