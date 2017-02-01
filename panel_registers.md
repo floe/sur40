@@ -46,3 +46,9 @@ DDR memory layout:
 0x4ff2000 - scratch buffer for transfers from SPI flash (4k)
 0x5000000 - calibration data (0x10e000)
 ```
+
+I2C memory layout (Cypress FX2 firmware):
+
+SPI memory layout (FPGA bitstream & calibration):
+
+I2C eeprom layout:
