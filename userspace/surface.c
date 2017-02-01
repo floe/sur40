@@ -204,22 +204,51 @@ int surface_read_usb_flash( usb_dev_handle* handle, int offset, uint8_t buffer[6
 	return usb_control_msg( handle, SURFACE_I2C_READ, offset,	 0, (char*)buffer, 64, timeout );
 }
 
-int surface_read_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] ) {
+int surface_read_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
 	
-	uint32_t request[2] = { 0x05000000, 0x10e000 };
-	int result, bufsize = 0x10e000, bufpos = 0, blocksize = 2048;
+	uint32_t request[2] = { target_offset, bufsize };
+	uint32_t result, bufpos = 0;
 	
 	usb_control_msg( handle, SURFACE_DDR_READ_ENABLE,  0, true, NULL, 0, timeout );
 	usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
 	
 	while (bufpos < bufsize) {
-		int rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
+		uint32_t rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
 		result = usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)(buffer+bufpos), rest, timeout );
 		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
 		bufpos += result;
 	}
 	
 	return bufpos;
+}
+
+int surface_write_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
+
+	uint32_t request[2] = { target_offset, blocksize };
+	uint32_t result, bufpos = 0;
+
+	// unclear if this is needed for DDR writes (probably not)
+	//usb_control_msg( handle, SURFACE_DDR_READ_ENABLE,  0, true, NULL, 0, timeout );
+
+	while (bufpos < bufsize) {
+		uint32_t rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
+		result = usb_bulk_write( handle, ENDPOINT_DDR_WRITE, (char*)request, sizeof(request), timeout );
+		if (result < 0) { printf("error in usb_bulk_write\n"); return result; }
+		result = usb_bulk_write( handle, ENDPOINT_DDR_WRITE, (char*)(buffer+bufpos), rest, timeout );
+		if (result < 0) { printf("error in usb_bulk_write\n"); return result; }
+		bufpos += result;
+		request[0] += result;
+	}
+
+	return bufpos;
+}
+
+int surface_write_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] ) {
+	return surface_write_ddr( handle, buffer, 0x10e000, 0x05000000, 2048 );
+}
+
+int surface_read_calib( usb_dev_handle* handle, uint8_t buffer[0x10e000] ) {
+	return surface_read_ddr( handle, buffer, 0x10e000, 0x05000000, 2048 );
 }
 
 // value was: 0xc7, 0xb7, 0xa7, 0x97, 0x98, 0x99
