@@ -141,6 +141,14 @@ void resize(int w, int h) {
   glutPostRedisplay();
 }
 
+void read_calib() {
+	uint8_t calibbuf[0x10e000];
+	int res = surface_read_calib(s40,calibbuf);
+	printf("read_calib result: %x\n",res);
+	FILE* foo = fopen("calib.raw","w");
+	fwrite(calibbuf, 0x10e000, 1, foo);
+	fclose(foo);
+}
 
 void keyboard(unsigned char key, int x, int y) {
   switch (key) {
@@ -156,6 +164,10 @@ void keyboard(unsigned char key, int x, int y) {
 		case 'e':
 			surface_calib_end( s40 );
 			mode = 1;
+			break;
+
+		case 'r':
+			read_calib();
 			break;
 
 		case '<': set = true; voltage++; if (voltage > 15) voltage = 15; break;
