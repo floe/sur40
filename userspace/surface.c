@@ -179,6 +179,8 @@ void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(20000);
 }
 
+// ( ... 0x01, 0x80, 0x00 ) == poll until FPGA is no longer in GPIO mode, used for SPI transfer completion
+// ( ... 0x01, 0x02, 0x02 ) == poll until FPGA is no longer in reset mode, used after firmware upgrade
 int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask, int value ) {
 	uint8_t buffer[64];
 	for ( int i = 0; i < tries; i++ ) {
@@ -241,7 +243,7 @@ int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
 }
 
 #ifdef DANGER_WILL_ROBINSON
-// write Cypres FX2 USB firmware to I2C EEPROM
+// write Cypress FX2 USB firmware to I2C EEPROM
 int surface_write_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
 	int offset = 0;
 	while (offset < 8192) {
