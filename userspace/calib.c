@@ -51,6 +51,11 @@ int voltage = 0x0c;
 int bias    = 0x07;
 bool set = false;
 
+int curframe = 0;
+int lasttime = 0;
+int lastframe = 0;
+double fps = 0.0;
+
 
 void output( int x, int y, char *string ) {
   glRasterPos2f(x, y);
@@ -92,6 +97,19 @@ void display() {
 	uint8_t image2[VIDEO_BUFFER_SIZE*2];
 	surface_blob blobs[256];
 
+	char buffer[128];
+
+	int curtime = glutGet( GLUT_ELAPSED_TIME );
+	curframe++;
+
+	if ((curtime - lasttime) >= 1000) {
+		fps = (1000.0*(curframe-lastframe))/((double)(curtime-lasttime));
+		lasttime  = curtime;
+		lastframe = curframe;
+		snprintf(buffer,sizeof(buffer),"FPS: %f",fps);
+		printf("%s\n",buffer);
+	}
+
   // clear buffers
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -104,7 +122,7 @@ void display() {
     // always 960 pixels wide, in calibration mode double height
     // apparently 4 subfields (QRST), interlaced row-wise as QQRRSSTT 
 	surface_get_image( s40, image, VIDEO_BUFFER_SIZE*mode );
-	//int bc = surface_get_blobs( s40, blobs );
+	int bc = surface_get_blobs( s40, blobs );
 
 	if (mode == 2) deinterlace(image,image2);
 
@@ -122,6 +140,31 @@ void display() {
 	glEnd();
 
 	glDisable(GL_TEXTURE_2D);
+
+	// green: tip
+	glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
+	for (int i = 0; i < bc; i++) cross( blobs[i].pos_x/2, blobs[i].pos_y/2 );
+
+	// red: centroid(?)
+	glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+	for (int i = 0; i < bc; i++) cross( blobs[i].ctr_x/2, blobs[i].ctr_y/2 );
+
+	// yellow: axis(?)
+	/*glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
+	for (int i = 0; i < bc; i++) cross( (blobs[i].pos_x+blobs[i].axis_x)/2, (blobs[i].pos_y+blobs[i].axis_y)/2 );*/
+
+	// blue: bbox
+	glColor4f(0.0f, 0.0f, 1.0f, 1.0f);
+	for (int i = 0; i < bc; i++) box( blobs[i].bb_pos_x/2, blobs[i].bb_pos_y/2, (blobs[i].bb_pos_x+blobs[i].bb_size_x)/2, (blobs[i].bb_pos_y+blobs[i].bb_size_y)/2 );
+
+	// white: id
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	for (int i = 0; i < bc; i++) {
+		char buf[64]; snprintf(buf,64,"%d",blobs[i].blob_id);
+		output(blobs[i].ctr_x/2, blobs[i].ctr_y/2,buf);
+	}
+
+	output(20,20,buffer);
 
   // redraw
   glutSwapBuffers();
