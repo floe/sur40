@@ -179,15 +179,16 @@ void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(20000);
 }
 
-int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask ) {
+int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask, int value ) {
 	uint8_t buffer[64];
 	for ( int i = 0; i < tries; i++ ) {
 		usleep(5000);
 		int result = usb_control_msg( handle, SURFACE_BUS_STATUS, 0, 0, (char*)buffer, sizeof(buffer), timeout );
 		if (result < 0) { printf("error in BUS_STATUS\n"); return result; }
-		if ((buffer[offset] & mask) == 0) return 1;
+		printf("completion polling: offset %d == %02x\n",offset,buffer[offset]);
+		if ((buffer[offset] & mask) == value) return i;
 	}
-	return 0;
+	return -1;
 }
 
 // likely 0x190 pages of fpga bitstream (?), calibration starts at page 0x190
@@ -202,7 +203,8 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffe
 	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER, page, direction, (char*)request, 4, timeout );
 	if (result < 0) { printf("error in SPI_TRANSFER\n"); return result; }
 
-	surface_poll_completion( handle, 20, 1, 0x80 );
+	result = surface_poll_completion( handle, 20, 0x01, 0x80, 0x00 );
+	if (result < 0) { printf("error in poll_completion\n"); return result; }
 
 	result = usb_control_msg( handle, SURFACE_DDR_READ_ENABLE, 0, true, NULL, 0, timeout );
 	if (result < 0) { printf("error in DDR_READ_ENABLE\n"); return result; }
