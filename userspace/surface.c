@@ -56,8 +56,8 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 
 #define SURFACE_GET_VERSION 0xb0 // 12 bytes string
 
-#define SURFACE_UNKNOWN1    0xb3 //  5 bytes - sent only once during setup
-#define SURFACE_UNKNOWN2    0xc1 // 24 bytes - sent only once during setup
+#define SURFACE_ACCEL_CAPS  0xb3 //  5 bytes - sent only once during setup
+#define SURFACE_SENSOR_CAPS 0xc1 // 24 bytes - sent only once during setup
 
 #define SURFACE_GET_STATUS  0xc5 //  4 bytes state (?) - sent once per second, response usually 0x00000000
 #define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors   - sent once per second, response probably 0xZZXXYYTT
@@ -102,8 +102,8 @@ void surface_init( usb_dev_handle* handle ) {
 	surface_get_version(handle, 0x01);
 	surface_get_version(handle, 0x02);
 
-	surface_command(handle, SURFACE_UNKNOWN2, 0x00, 24 );
-	surface_command(handle, SURFACE_UNKNOWN1, 0x00,  5 );
+	surface_command(handle, SURFACE_SENSOR_CAPS, 0x00, 24 );
+	surface_command(handle, SURFACE_ACCEL_CAPS,  0x00,  5 );
 
 	surface_get_version(handle, 0x03);
 }
