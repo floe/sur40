@@ -148,5 +148,7 @@ int surface_read_calib( usb_dev_handle* handle, surface_calib* calib );
 int surface_write_calib( usb_dev_handle* handle, surface_calib* calib );
 
 int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] );
+int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffer[4096] );
+
 
 #endif // _SURFACE_H_

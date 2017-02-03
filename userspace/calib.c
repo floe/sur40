@@ -169,6 +169,17 @@ void read_usb_fw() {
 	fclose(foo);
 }
 
+void read_fpga_fw() {
+	uint8_t page[4096];
+	memset(page,0,sizeof(page));
+	int res = surface_read_spi_flash(s40,0x190,page);
+	printf("read_fw result: %d\n",res);
+	FILE* foo = fopen("fpga.raw","w");
+	fwrite(page, sizeof(page), 1, foo);
+	fclose(foo);
+
+}
+
 void keyboard(unsigned char key, int x, int y) {
   switch (key) {
 		case 'q':
@@ -195,6 +206,10 @@ void keyboard(unsigned char key, int x, int y) {
 
 		case 'R':
 			read_usb_fw();
+			break;
+
+		case 'f':
+			read_fpga_fw();
 			break;
 
 		case '<': set = true; voltage++; if (voltage > 15) voltage = 15; break;

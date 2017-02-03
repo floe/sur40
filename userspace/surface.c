@@ -128,6 +128,7 @@ void surface_init( usb_dev_handle* handle ) {
 #define SURFACE_SPI_TRANSFER 0x40,0xc3 // maybe trigger calibration save? send 4 bytes
 #define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, get 41, used for completion polling
 #define SURFACE_QUERY_SPI    0xc0,0xc3 // query SPI flash size
+#define SURFACE_FPGA_READS   0x40,0xb1 // enable SPI flash access
 
 #define SURFACE_I2C_READ     0xc0,0xb6 // read USB firmware I2C eeprom
 #define SURFACE_I2C_WRITE    0x40,0xb0 // write ...
@@ -181,24 +182,33 @@ void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
 int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask ) {
 	uint8_t buffer[64];
 	for ( int i = 0; i < tries; i++ ) {
-		int result = usb_control_msg( handle, SURFACE_BUS_STATUS, 0, 0, (char*)buffer, sizeof(buffer), timeout );
-		if (result < 0) return result;
-		if ((buffer[offset] & mask) == 0) return 1;
 		usleep(5000);
+		int result = usb_control_msg( handle, SURFACE_BUS_STATUS, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+		if (result < 0) { printf("error in BUS_STATUS\n"); return result; }
+		if ((buffer[offset] & mask) == 0) return 1;
 	}
 	return 0;
 }
 
 // likely 0x190 pages of fpga bitstream (?), calibration starts at page 0x190
-int surface_read_spi_flash( usb_dev_handle* handle, uint8_t page, uint8_t buffer[4096] ) {
+int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffer[4096] ) {
 
 	uint32_t request[2] = { 0x04ff2000, 4096 };
-	int direction = 0; // SPI to DDR
+	int result, direction = 0; // SPI to DDR
+
+	result = usb_control_msg( handle, SURFACE_FPGA_READS, 0, true, NULL, 0, timeout); // enable read from SPI flash?
+	if (result < 0) { printf("error in FPGA_READS\n"); return result; }
 	
-	usb_control_msg( handle, SURFACE_DDR_READ_ENABLE, 0, true, NULL, 0, timeout );
-	usb_control_msg( handle, SURFACE_SPI_TRANSFER, page, direction, (char*)request, 4, timeout );
+	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER, page, direction, (char*)request, 4, timeout );
+	if (result < 0) { printf("error in SPI_TRANSFER\n"); return result; }
+
 	surface_poll_completion( handle, 20, 1, 0x80 );
-	usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
+
+	result = usb_control_msg( handle, SURFACE_DDR_READ_ENABLE, 0, true, NULL, 0, timeout );
+	if (result < 0) { printf("error in DDR_READ_ENABLE\n"); return result; }
+
+	result = usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
+	if (result < 0) { printf("error in DDR_READ\n"); return result; }
 	
 	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
 }
