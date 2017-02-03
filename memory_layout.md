@@ -50,7 +50,13 @@
 
 ### I2C flash layout (8kB/64kBit):
 ```
-0x0000: Cypress FX2 firmware (0x2000)
+0x0000: Cypress FX2 firmware (0x1E40)
+0x1E40: 0xFF 0xFF 0xFF 0xFF ...
+0x1F9B: 0x10 (?)
+0x1F9C: "persistent key-value store" (64b)
+0x1FDC: version string 1 (Cypress, 12b)
+0x1FE8: version string 2 (FPGA, 12b)
+0x1FF4: 0xFF 0xFF 0xFF 0xFF ...
 ```
 
 ### SPI flash layout (probably 4MB/32MBit):

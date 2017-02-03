@@ -112,9 +112,26 @@ void surface_init( usb_dev_handle* handle ) {
 
 #define SURFACE_PEEK     0xc4 // read 48 bytes internal state - perhaps controller memory?
 #define SURFACE_POKE     0xc5 // used for calibration setup - seems to access memory like c4, or maybe I2C in general
+
 	#define SP_INIT1 0x05 // host interface module
+		// value 0x00 = default mode, corrected frame
+		// value 0x04 = interlaced full frame (double height), used for calibration
+		// value 0x08 = top half of full frame
+		// value 0x10 = bottom half of full frame
+
 	#define SP_INIT2 0x07 // image corrector module
+		// value 0x00 = default mode
+		// value 0x01 = disable image correction, used for calibration
+		// value 0x02 = accumulate black (wait 4.5 seconds)
+		// value 0x04 = accumulate white (wait 5.5 seconds)
+
+	// TODO: actually, this _may_ mean parameter 0x01 for module 0x07, i.e. also the image corrector
 	#define SP_INIT3 0x17 // ... unknown ...
+		// value 0x80 = default mode
+		// value 0x85 = raw mode (?), similar to disabling image corrector, used for calibration
+		// value 0x83 = "FOM" mode (?), similar to 0x85, used for capture file generation
+
+	// this sequence apparently accesses I2C: index 0x96 == panel, 0xae == panel eeprom
 	#define SP_NVW1  0x32 // always with index 0x96 or 0xae, indicates memory write (0xae == permanent write?)
 	#define SP_NVW2  0x72 // index == offset into memory
 	#define SP_NVW3  0xb2 // index == value to write into memory
