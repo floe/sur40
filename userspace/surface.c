@@ -127,7 +127,9 @@ void surface_init( usb_dev_handle* handle ) {
 
 #define SURFACE_SPI_TRANSFER 0x40,0xc3 // maybe trigger calibration save? send 4 bytes
 #define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, get 41, used for completion polling
-#define SURFACE_I2C_READ     0xc0,0xb6
+
+#define SURFACE_I2C_READ     0xc0,0xb6 // read USB firmware I2C eeprom
+#define SURFACE_I2C_WRITE    0x40,0xb0 // write ...
 
 /* rough calibration sequence:
 	- column correction (with white board)
@@ -200,6 +202,7 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint8_t page, uint8_t buffer
 	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
 }
 
+// retrieves 8k of Cypress FX2 firmware, stored in 64k I2C EEPROM
 int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
 	int offset = 0;
 	while (offset < 8192) {
@@ -209,6 +212,19 @@ int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
 	}
 	return offset;
 }
+
+#ifdef DANGER_WILL_ROBINSON
+// write Cypres FX2 USB firmware to I2C EEPROM
+int surface_write_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
+	int offset = 0;
+	while (offset < 8192) {
+		int result = usb_control_msg( handle, SURFACE_I2C_WRITE, offset, 0, (char*)(buffer+offset), 32, timeout );
+		if (result < 32) return result;
+		offset += result;
+	}
+	return offset;
+}
+#endif
 
 int surface_read_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
 	
