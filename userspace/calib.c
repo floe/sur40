@@ -171,13 +171,14 @@ void read_usb_fw() {
 
 void read_fpga_fw() {
 	uint8_t page[4096];
-	memset(page,0,sizeof(page));
-	int res = surface_read_spi_flash(s40,0x190,page);
-	printf("read_fw result: %d\n",res);
-	FILE* foo = fopen("fpga.raw","w");
-	fwrite(page, sizeof(page), 1, foo);
+	FILE* foo = fopen("calib_fpga.raw","w");
+	for (int i = 0x190; i < 0x190+270; i++) {
+		memset(page,0,sizeof(page));
+		int res = surface_read_spi_flash(s40,i,page);
+		printf("read_fw result %d: %d\n",i,res);
+		fwrite(page, sizeof(page), 1, foo);
+	}
 	fclose(foo);
-
 }
 
 void keyboard(unsigned char key, int x, int y) {

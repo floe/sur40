@@ -213,17 +213,7 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffe
 	result = surface_poll_completion( handle, 20, 0x01, 0x80, 0x00 );
 	if (result < 0) { printf("error in poll_completion\n"); return result; }
 
-	// TODO: warning untested
 	return surface_read_ddr( handle, buffer, request[1], request[0], request[1] );
-/*
-	result = usb_control_msg( handle, SURFACE_DDR_READ_ENABLE, 0, true, NULL, 0, timeout );
-	if (result < 0) { printf("error in DDR_READ_ENABLE\n"); return result; }
-
-	result = usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
-	if (result < 0) { printf("error in DDR_READ\n"); return result; }
-	
-	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
-*/
 }
 
 // query SPI flash size in MB (stores FPGA bitstream and calibration)
