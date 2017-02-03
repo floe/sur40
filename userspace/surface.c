@@ -127,6 +127,7 @@ void surface_init( usb_dev_handle* handle ) {
 
 #define SURFACE_SPI_TRANSFER 0x40,0xc3 // maybe trigger calibration save? send 4 bytes
 #define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, get 41, used for completion polling
+#define SURFACE_QUERY_SPI    0xc0,0xc3 // query SPI flash size
 
 #define SURFACE_I2C_READ     0xc0,0xb6 // read USB firmware I2C eeprom
 #define SURFACE_I2C_WRITE    0x40,0xb0 // write ...
@@ -200,6 +201,20 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint8_t page, uint8_t buffer
 	usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
 	
 	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
+}
+
+// query SPI flash size in MB (stores FPGA bitstream and calibration)
+// seems to be broken, always returns timeout (and is also never used in original code)
+int surface_spi_flash_size_mb( usb_dev_handle* handle ) {
+	uint8_t buffer[64];
+	uint32_t request[1] = { 0 };
+	int result = usb_control_msg( handle, SURFACE_QUERY_SPI, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+	if ((result < 0) || (buffer[0] == 0)) {
+		usb_control_msg( handle, SURFACE_SPI_TRANSFER, 0, 0, (char*)request, sizeof(request), timeout );
+		usleep(100000);
+		result = usb_control_msg( handle, SURFACE_QUERY_SPI, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+	}
+	return (result < 0 ? result : buffer[0] );
 }
 
 // retrieves 8k of Cypress FX2 firmware, stored in 64k I2C EEPROM
