@@ -131,6 +131,8 @@ void surface_init( usb_dev_handle* handle ) {
 #define SURFACE_SPI_TRANSFER_REQUEST 0x40,0xc3 // transfer data between SPI flash and DDR
 #define SURFACE_SPI_TRANSFER_ENABLE  0x40,0xb1 // enable SPI flash access
 
+#define SURFACE_SPI_PAGE_SIZE 4096
+
 #define SURFACE_I2C_READ     0xc0,0xb6 // read USB firmware I2C eeprom
 #define SURFACE_I2C_WRITE    0x40,0xb0 // write ...
 
@@ -194,6 +196,8 @@ int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int 
 	return -1;
 }
 
+int surface_read_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize );
+
 // likely 0x190 pages of fpga bitstream (?), calibration starts at page 0x190
 int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffer[4096] ) {
 
@@ -209,6 +213,9 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffe
 	result = surface_poll_completion( handle, 20, 0x01, 0x80, 0x00 );
 	if (result < 0) { printf("error in poll_completion\n"); return result; }
 
+	// TODO: warning untested
+	return surface_read_ddr( handle, buffer, request[1], request[0], request[1] );
+/*
 	result = usb_control_msg( handle, SURFACE_DDR_READ_ENABLE, 0, true, NULL, 0, timeout );
 	if (result < 0) { printf("error in DDR_READ_ENABLE\n"); return result; }
 
@@ -216,6 +223,7 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffe
 	if (result < 0) { printf("error in DDR_READ\n"); return result; }
 	
 	return usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)buffer, 4096, timeout );
+*/
 }
 
 // query SPI flash size in MB (stores FPGA bitstream and calibration)
