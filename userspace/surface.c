@@ -125,10 +125,11 @@ void surface_init( usb_dev_handle* handle ) {
 #define SURFACE_GET_PARAMS 0xc0,0xb4 // read key-value store: read 64 bytes, get 30
 #define SURFACE_SET_PARAMS 0x40,0xb6 // write key-value store: write 42 bytes
 
-#define SURFACE_SPI_TRANSFER 0x40,0xc3 // maybe trigger calibration save? send 4 bytes
-#define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, get 41, used for completion polling
+#define SURFACE_BUS_STATUS   0xc0,0xb5 // read 64 bytes, used for SPI completion polling
 #define SURFACE_QUERY_SPI    0xc0,0xc3 // query SPI flash size
-#define SURFACE_FPGA_READS   0x40,0xb1 // enable SPI flash access
+
+#define SURFACE_SPI_TRANSFER_REQUEST 0x40,0xc3 // transfer data between SPI flash and DDR
+#define SURFACE_SPI_TRANSFER_ENABLE  0x40,0xb1 // enable SPI flash access
 
 #define SURFACE_I2C_READ     0xc0,0xb6 // read USB firmware I2C eeprom
 #define SURFACE_I2C_WRITE    0x40,0xb0 // write ...
@@ -199,10 +200,10 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffe
 	uint32_t request[2] = { 0x04ff2000, 4096 };
 	int result, direction = 0; // SPI to DDR
 
-	result = usb_control_msg( handle, SURFACE_FPGA_READS, 0, true, NULL, 0, timeout); // enable read from SPI flash?
+	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER_ENABLE, 0, true, NULL, 0, timeout); // enable read from SPI flash?
 	if (result < 0) { printf("error in FPGA_READS\n"); return result; }
 	
-	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER, page, direction, (char*)request, 4, timeout );
+	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER_REQUEST, page, direction, (char*)request, 4, timeout );
 	if (result < 0) { printf("error in SPI_TRANSFER\n"); return result; }
 
 	result = surface_poll_completion( handle, 20, 0x01, 0x80, 0x00 );
@@ -224,7 +225,7 @@ int surface_spi_flash_size_mb( usb_dev_handle* handle ) {
 	uint32_t request[1] = { 0 };
 	int result = usb_control_msg( handle, SURFACE_QUERY_SPI, 0, 0, (char*)buffer, sizeof(buffer), timeout );
 	if ((result < 0) || (buffer[0] == 0)) {
-		usb_control_msg( handle, SURFACE_SPI_TRANSFER, 0, 0, (char*)request, sizeof(request), timeout );
+		usb_control_msg( handle, SURFACE_SPI_TRANSFER_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
 		usleep(100000);
 		result = usb_control_msg( handle, SURFACE_QUERY_SPI, 0, 0, (char*)buffer, sizeof(buffer), timeout );
 	}
