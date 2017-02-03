@@ -1,3 +1,4 @@
+### Panel register layout:
 ```
 0x00: 22    // EvenFrameFieldOrder
 0x01: 22    // OddFrameFieldOrder
@@ -40,15 +41,20 @@
 0x2f: 27    // PanelTemp
 ```
 
-DDR memory layout:
+### DDR memory layout (probably 128 MB):
 ```
 0x4ff0000 - scratch buffer for transfers to SPI flash (4k)
 0x4ff2000 - scratch buffer for transfers from SPI flash (4k)
 0x5000000 - calibration data (0x10e000)
 ```
 
-I2C memory layout (Cypress FX2 firmware):
+### I2C flash layout (8kB/64kBit):
+```
+0x0000: Cypress FX2 firmware (0x2000)
+```
 
-SPI memory layout (FPGA bitstream & calibration):
-
-I2C eeprom layout:
+### SPI flash layout (probably 4MB/32MBit):
+```
+0x000000 - FPGA bitstream (?)
+0x190000 - calibration data (0x10e000)
+```
