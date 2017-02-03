@@ -89,7 +89,7 @@ struct surface_sensors {
 
 
 // internal calibration for one row
-struct surface_row_calib {
+struct __attribute__((__packed__)) surface_row_calib {
 
 	uint16_t calib[VIDEO_RES_X]; // MSB = black level, LSB = white level?
 
