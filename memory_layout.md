@@ -61,6 +61,6 @@
 
 ### SPI flash layout (probably 4MB/32MBit):
 ```
-0x000000 - FPGA bitstream (?)
+0x000000 - FPGA bitstream (possibly for Spartan-6 6SLX45)
 0x190000 - calibration data (0x10e000)
 ```
