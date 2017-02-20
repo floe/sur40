@@ -52,7 +52,7 @@
 ```
 0x0000: Cypress FX2 firmware (0x1E40)
 0x1E40: 0xFF 0xFF 0xFF 0xFF ...
-0x1F9B: 0x10 (?)
+0x1F9B: number of key-value pairs in store
 0x1F9C: "persistent key-value store" (64b)
 0x1FDC: version string 1 (Cypress, 12b)
 0x1FE8: version string 2 (FPGA, 12b)
