@@ -67,4 +67,4 @@
 
 ### Internal component layout
 
-![Internal layout](https://github.com/floe/surface-2.0/raw/master/IMG_20170216_134130.jpg)
+![Internal layout](https://github.com/floe/surface-2.0/raw/master/notes/block_diagram.png)
