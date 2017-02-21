@@ -65,6 +65,10 @@
 0x190000 - calibration data (0x10e000)
 ```
 
+Information about the bitstream format: https://www.xilinx.com/support/documentation/user_guides/ug380.pdf
+
+Toolchain to analyze the bitstream: https://github.com/Wolfgang-Spraul/fpgatools
+
 ### Internal component layout
 
 ![Internal layout](https://github.com/floe/surface-2.0/raw/master/notes/block_diagram.png)
