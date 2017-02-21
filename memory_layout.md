@@ -64,3 +64,5 @@
 0x000000 - FPGA bitstream (possibly for Spartan-6 6SLX45)
 0x190000 - calibration data (0x10e000)
 ```
+
+![Internal layout](https://github.com/floe/surface-2.0/raw/master/IMG_20170216_134130.jpg)
