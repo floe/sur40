@@ -135,6 +135,7 @@ struct sur40_image_header {
 #define SUR40_GET_VERSION 0xb0 /* 12 bytes string    */
 #define SUR40_UNKNOWN1    0xb3 /*  5 bytes           */
 #define SUR40_UNKNOWN2    0xc1 /* 24 bytes           */
+#define SUR40_POKE        0xc5
 
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
@@ -212,6 +213,48 @@ static int sur40_command(struct sur40_state *dev,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			       0x00, index, buffer, size, 1000);
 }
+
+/* poke a byte in the panel register space */
+static int sur40_poke( struct sur40_state *dev, u8 offset, u8 value )
+{
+	int result;
+	u8 index = 0x96; // 0xae for permanent write
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x32, index, NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(20);
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x72, offset, NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(20);
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0xb2, value, NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(20);
+
+error:
+	return result;
+}
+
+static void sur40_set_vsvideo( struct sur40_state *handle, u8 value ) {
+	for (int i = 0; i < 4; i++)
+		sur40_poke( handle, 0x1c+i, value );
+}
+
+static void sur40_set_irlevel( struct sur40_state *handle, u8 value ) {
+	for (int i = 0; i < 8; i++)
+		sur40_poke( handle, 0x08+(2*i), value );
+}
+
 
 /* Initialization routine, called from sur40_open */
 static int sur40_init(struct sur40_state *dev)
