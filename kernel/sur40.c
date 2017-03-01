@@ -220,21 +220,21 @@ static int sur40_poke( struct sur40_state *dev, u8 offset, u8 value )
 	int result;
 	u8 index = 0x96; // 0xae for permanent write
 
-	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+	result = usb_control_msg(dev->usbdev, usb_rcvctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0x32, index, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
 	msleep(20);
 
-	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+	result = usb_control_msg(dev->usbdev, usb_rcvctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0x72, offset, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
 	msleep(20);
 
-	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+	result = usb_control_msg(dev->usbdev, usb_rcvctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0xb2, value, NULL, 0, 1000);
 	if (result < 0)
