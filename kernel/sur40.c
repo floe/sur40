@@ -246,12 +246,14 @@ error:
 }
 
 static void sur40_set_vsvideo( struct sur40_state *handle, u8 value ) {
-	for (int i = 0; i < 4; i++)
+	int i;
+	for (i = 0; i < 4; i++)
 		sur40_poke( handle, 0x1c+i, value );
 }
 
 static void sur40_set_irlevel( struct sur40_state *handle, u8 value ) {
-	for (int i = 0; i < 8; i++)
+	int i;
+	for (i = 0; i < 8; i++)
 		sur40_poke( handle, 0x08+(2*i), value );
 }
 
