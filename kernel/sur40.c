@@ -140,6 +140,10 @@ struct sur40_image_header {
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
 
+int brightness = 127; // 255 ... infrared
+int contrast = 7; //15 ... blacklevel
+int gain = 5; //10 ... gain
+
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
 		.pixelformat = V4L2_TCH_FMT_TU08,
@@ -225,21 +229,21 @@ static int sur40_poke( struct sur40_state *dev, u8 offset, u8 value )
 		0x32, index, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
-	msleep(20);
+	msleep(1);
 
 	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0x72, offset, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
-	msleep(20);
+	msleep(1);
 
 	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0xb2, value, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
-	msleep(20);
+	msleep(1);
 
 error:
 	return result;
@@ -884,6 +888,79 @@ static int sur40_vidioc_g_fmt(struct file *file, void *priv,
 	return 0;
 }
 
+
+static int sur40_vidioc_queryctrl(struct file *file, void *fh,
+                               struct v4l2_queryctrl *qc) {
+
+	if (qc->id == V4L2_CID_BRIGHTNESS) {
+		qc->flags = 0;
+		qc->type = V4L2_CTRL_TYPE_INTEGER;
+		qc->minimum = 0;
+		qc->default_value = 127;
+		qc->maximum = 255;
+		qc->step = 1;
+		return 0;
+	} else if (qc->id == V4L2_CID_CONTRAST) {
+		qc->flags = 0;
+		qc->type = V4L2_CTRL_TYPE_INTEGER;
+		qc->minimum = 0;
+		qc->default_value = 7;
+		qc->maximum = 15;
+		qc->step = 1;
+		return 0;
+	} else if (qc->id == V4L2_CID_GAIN) {
+		qc->flags = 0;
+		qc->type = V4L2_CTRL_TYPE_INTEGER;
+		qc->minimum = 0;
+		qc->default_value = 5;
+		qc->maximum = 9;
+		qc->step = 1;
+		return 0;
+	} else {
+		qc->flags = V4L2_CTRL_FLAG_DISABLED;
+		return -EINVAL;
+	}
+
+}
+
+static int sur40_vidioc_g_ctrl(struct file *file, void *fh,
+                            struct v4l2_control *ctrl) {
+
+	if (ctrl->id == V4L2_CID_BRIGHTNESS) {
+		ctrl->value = brightness;
+		return 0;
+	} else if (ctrl->id == V4L2_CID_CONTRAST) {
+		ctrl->value = contrast;
+		return 0;
+	} else if (ctrl->id == V4L2_CID_GAIN) {
+		ctrl->value = gain;
+		return 0;
+        } else return -EINVAL;
+}
+
+static int sur40_vidioc_s_ctrl(struct file *file, void *fh,
+                            struct v4l2_control *ctrl) {
+	u8 value = 0;
+	struct sur40_state *sur40 = video_drvdata(file);
+
+	if (ctrl->id == V4L2_CID_BRIGHTNESS) {
+		sur40_set_irlevel(sur40,  ctrl->value );
+		brightness = ctrl->value;
+		return 0;
+	} else if (ctrl->id == V4L2_CID_CONTRAST) {
+		contrast = ctrl->value;
+		value = (contrast << 4) + gain;
+		sur40_set_vsvideo(sur40, value );
+		return 0;
+	} else if (ctrl->id == V4L2_CID_GAIN) {
+		gain = ctrl->value;
+		value = (contrast << 4) + gain;
+		sur40_set_vsvideo(sur40, value );
+		return 0;
+        } else return -EINVAL;
+}
+
+
 static int sur40_ioctl_parm(struct file *file, void *priv,
 			    struct v4l2_streamparm *p)
 {
@@ -1001,6 +1078,10 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
 	.vidioc_s_input		= sur40_vidioc_s_input,
+
+	.vidioc_queryctrl = sur40_vidioc_queryctrl,
+        .vidioc_g_ctrl    = sur40_vidioc_g_ctrl,
+        .vidioc_s_ctrl    = sur40_vidioc_s_ctrl,
 
 	.vidioc_reqbufs		= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs	= vb2_ioctl_create_bufs,
