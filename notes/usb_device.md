@@ -10,8 +10,8 @@ Device Descriptor:
   idVendor           0x045e Microsoft Corp.
   idProduct          0x0775 
   bcdDevice            0.00
-  iManufacturer           1 
-  iProduct                2 
+  iManufacturer           1 Microsoft
+  iProduct                2 Vision Input Processor
   iSerial                 0 
   bNumConfigurations      1
   Configuration Descriptor:
@@ -34,6 +34,7 @@ Device Descriptor:
       bInterfaceSubClass      0 
       bInterfaceProtocol      0 
       iInterface              0 
+
       Endpoint Descriptor:
         bLength                 7
         bDescriptorType         5
@@ -44,6 +45,7 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0200  1x 512 bytes
         bInterval               0
+
       Endpoint Descriptor:
         bLength                 7
         bDescriptorType         5
@@ -54,6 +56,8 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0200  1x 512 bytes
         bInterval               0
+
+      # raw video data
       Endpoint Descriptor:
         bLength                 7
         bDescriptorType         5
@@ -64,6 +68,8 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0200  1x 512 bytes
         bInterval               0
+
+      # read from internal DDR memory
       Endpoint Descriptor:
         bLength                 7
         bDescriptorType         5
@@ -74,6 +80,8 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0200  1x 512 bytes
         bInterval               0
+
+      # detected blob descriptors
       Endpoint Descriptor:
         bLength                 7
         bDescriptorType         5
@@ -84,6 +92,8 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0200  1x 512 bytes
         bInterval               0
+
+      # write to internal DDR memory
       Endpoint Descriptor:
         bLength                 7
         bDescriptorType         5
@@ -94,3 +104,15 @@ Device Descriptor:
           Usage Type               Data
         wMaxPacketSize     0x0200  1x 512 bytes
         bInterval               0
+
+Device Qualifier (for other device speed):
+  bLength                10
+  bDescriptorType         6
+  bcdUSB               2.00
+  bDeviceClass            0 (Defined at Interface level)
+  bDeviceSubClass         0
+  bDeviceProtocol         0
+  bMaxPacketSize0        64
+  bNumConfigurations      1
+Device Status:     0x0001
+  Self Powered
