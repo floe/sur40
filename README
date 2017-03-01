@@ -1,9 +1,9 @@
 surface-2.0
 ===========
 
-Open-source driver for Microsoft PixelSense/Samsung SUR40 (formerly also known as MS Surface 2.0).
+Open-source driver for Microsoft/Samsung SUR40 (formerly also known as Surface 2.0 or MS PixelSense).
 
-The touchscreen functionality has been included in the Linux kernel since v3.13. The extended kernel driver with video functionality has been included in the official Linux kernel v4.1. This repository currently contains a standalone version of the driver as included in kernel v4.6.
+The touchscreen functionality has been included in the Linux kernel since v3.13. The extended kernel driver with video functionality has been included in the official Linux kernel v4.1. This repository currently contains a standalone version of the driver as included in kernel v4.10.
 
 If you want to use the video feature with an older kernel, the `backport-3.16` branch contains a functionally identical version of the kernel module which has been tested with v3.16.
 
