@@ -143,15 +143,15 @@ struct sur40_image_header {
 
 #define SUR40_BRIGHTNESS_MAX 0xFF
 #define SUR40_BRIGHTNESS_MIN 0x00
-#define SUR40_BRIGHTNESS_DEF 0x7F
+#define SUR40_BRIGHTNESS_DEF 0xFF
 
 #define SUR40_CONTRAST_MAX 0x0F
 #define SUR40_CONTRAST_MIN 0x00
-#define SUR40_CONTRAST_DEF 0x07
+#define SUR40_CONTRAST_DEF 0x0A
 
 #define SUR40_GAIN_MAX 0x09
 #define SUR40_GAIN_MIN 0x00
-#define SUR40_GAIN_DEF 0x05
+#define SUR40_GAIN_DEF 0x08
 
 int sur40_v4l2_brightness = SUR40_BRIGHTNESS_DEF; // infrared
 int sur40_v4l2_contrast   = SUR40_CONTRAST_DEF;   // blacklevel
@@ -250,21 +250,21 @@ static int sur40_poke( struct sur40_state *dev, u8 offset, u8 value )
 		0x32, index, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
-	msleep(1);
+	msleep(5);
 
 	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0x72, offset, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
-	msleep(1);
+	msleep(5);
 
 	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
 		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 		0xb2, value, NULL, 0, 1000);
 	if (result < 0)
 		goto error;
-	msleep(1);
+	msleep(5);
 
 error:
 	return result;
@@ -919,7 +919,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->minimum = SUR40_BRIGHTNESS_MIN;
 		qc->default_value = SUR40_BRIGHTNESS_DEF;
 		qc->maximum = SUR40_BRIGHTNESS_MAX;
-		qc->step = 1;
+		qc->step = 8;
 		return 0;
 	} else if (qc->id == V4L2_CID_CONTRAST) {
 		qc->flags = 0;
