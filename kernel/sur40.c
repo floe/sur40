@@ -915,6 +915,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 
 	if (qc->id == V4L2_CID_BRIGHTNESS) {
 		qc->flags = 0;
+		sprintf(qc->name,"Brightness");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
 		qc->minimum = SUR40_BRIGHTNESS_MIN;
 		qc->default_value = SUR40_BRIGHTNESS_DEF;
@@ -923,6 +924,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		return 0;
 	} else if (qc->id == V4L2_CID_CONTRAST) {
 		qc->flags = 0;
+		sprintf(qc->name,"Contrast");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
 		qc->minimum = SUR40_CONTRAST_MIN;
 		qc->default_value = SUR40_CONTRAST_DEF;
@@ -931,6 +933,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		return 0;
 	} else if (qc->id == V4L2_CID_GAIN) {
 		qc->flags = 0;
+		sprintf(qc->name,"Gain");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
 		qc->minimum = SUR40_GAIN_MIN;
 		qc->default_value = SUR40_GAIN_DEF;
