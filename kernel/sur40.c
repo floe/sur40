@@ -913,7 +913,8 @@ static int sur40_vidioc_g_fmt(struct file *file, void *priv,
 static int sur40_vidioc_queryctrl(struct file *file, void *fh,
                                struct v4l2_queryctrl *qc) {
 
-	if (qc->id == V4L2_CID_BRIGHTNESS) {
+	switch (qc->id) {
+	case V4L2_CID_BRIGHTNESS:
 		qc->flags = 0;
 		sprintf(qc->name,"Brightness");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
@@ -922,7 +923,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->maximum = SUR40_BRIGHTNESS_MAX;
 		qc->step = 8;
 		return 0;
-	} else if (qc->id == V4L2_CID_CONTRAST) {
+	case V4L2_CID_CONTRAST:
 		qc->flags = 0;
 		sprintf(qc->name,"Contrast");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
@@ -931,7 +932,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->maximum = SUR40_CONTRAST_MAX;
 		qc->step = 1;
 		return 0;
-	} else if (qc->id == V4L2_CID_GAIN) {
+	case V4L2_CID_GAIN:
 		qc->flags = 0;
 		sprintf(qc->name,"Gain");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
@@ -940,7 +941,7 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->maximum = SUR40_GAIN_MAX;
 		qc->step = 1;
 		return 0;
-	} else {
+	default:
 		qc->flags = V4L2_CTRL_FLAG_DISABLED;
 		return -EINVAL;
 	}
@@ -949,16 +950,19 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 static int sur40_vidioc_g_ctrl(struct file *file, void *fh,
                             struct v4l2_control *ctrl) {
 
-	if (ctrl->id == V4L2_CID_BRIGHTNESS) {
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
 		ctrl->value = sur40_v4l2_brightness;
 		return 0;
-	} else if (ctrl->id == V4L2_CID_CONTRAST) {
+	case V4L2_CID_CONTRAST:
 		ctrl->value = sur40_v4l2_contrast;
 		return 0;
-	} else if (ctrl->id == V4L2_CID_GAIN) {
+	case V4L2_CID_GAIN:
 		ctrl->value = sur40_v4l2_gain;
 		return 0;
-        } else return -EINVAL;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int sur40_vidioc_s_ctrl(struct file *file, void *fh,
@@ -966,27 +970,30 @@ static int sur40_vidioc_s_ctrl(struct file *file, void *fh,
 	u8 value = 0;
 	struct sur40_state *sur40 = video_drvdata(file);
 
-	if (ctrl->id == V4L2_CID_BRIGHTNESS) {
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
 		sur40_v4l2_brightness = ctrl->value;
 		if (sur40_v4l2_brightness < SUR40_BRIGHTNESS_MIN) sur40_v4l2_brightness = SUR40_BRIGHTNESS_MIN;
 		else if (sur40_v4l2_brightness > SUR40_BRIGHTNESS_MAX) sur40_v4l2_brightness = SUR40_BRIGHTNESS_MAX;
 		sur40_set_irlevel(sur40, sur40_v4l2_brightness);
 		return 0;
-	} else if (ctrl->id == V4L2_CID_CONTRAST) {
+	case V4L2_CID_CONTRAST:
 		sur40_v4l2_contrast = ctrl->value;
 		if (sur40_v4l2_contrast < SUR40_CONTRAST_MIN) sur40_v4l2_contrast = SUR40_CONTRAST_MIN;
 		else if (sur40_v4l2_contrast > SUR40_CONTRAST_MAX) sur40_v4l2_contrast = SUR40_CONTRAST_MAX;
 		value = (sur40_v4l2_contrast << 4) + sur40_v4l2_gain;
 		sur40_set_vsvideo(sur40, value );
 		return 0;
-	} else if (ctrl->id == V4L2_CID_GAIN) {
+	case V4L2_CID_GAIN:
 		sur40_v4l2_gain = ctrl->value;
 		if (sur40_v4l2_gain < SUR40_GAIN_MIN) sur40_v4l2_gain = SUR40_GAIN_MIN;
 		else if (sur40_v4l2_gain > SUR40_GAIN_MAX) sur40_v4l2_gain = SUR40_GAIN_MAX;
 		value = (sur40_v4l2_contrast << 4) + sur40_v4l2_gain;
 		sur40_set_vsvideo(sur40, value );
 		return 0;
-        } else return -EINVAL;
+	default:
+		return -EINVAL;
+	}
 }
 
 
