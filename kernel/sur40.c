@@ -133,8 +133,8 @@ struct sur40_image_header {
 
 /* control commands */
 #define SUR40_GET_VERSION 0xb0 /* 12 bytes string    */
-#define SUR40_UNKNOWN1    0xb3 /*  5 bytes           */
-#define SUR40_UNKNOWN2    0xc1 /* 24 bytes           */
+#define SUR40_ACCEL_CAPS  0xb3 /*  5 bytes           */
+#define SUR40_SENSOR_CAPS 0xc1 /* 24 bytes           */
 #define SUR40_POKE        0xc5
 
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
@@ -308,11 +308,11 @@ static int sur40_init(struct sur40_state *dev)
 	if (result < 0)
 		goto error;
 
-	result = sur40_command(dev, SUR40_UNKNOWN2,    0x00, buffer, 24);
+	result = sur40_command(dev, SUR40_SENSOR_CAPS, 0x00, buffer, 24);
 	if (result < 0)
 		goto error;
 
-	result = sur40_command(dev, SUR40_UNKNOWN1,    0x00, buffer,  5);
+	result = sur40_command(dev, SUR40_ACCEL_CAPS, 0x00, buffer, 5);
 	if (result < 0)
 		goto error;
 
