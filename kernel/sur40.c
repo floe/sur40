@@ -157,13 +157,13 @@ int sur40_v4l2_brightness = SUR40_BRIGHTNESS_DEF; // infrared
 int sur40_v4l2_contrast   = SUR40_CONTRAST_DEF;   // blacklevel
 int sur40_v4l2_gain       = SUR40_GAIN_DEF;       // gain
 
-/* module parameter controlling xinput*/
-static bool sur40_xinput = 1;             /* default to on */
-module_param(sur40_xinput, bool, 0644);  /* a Boolean type */
+// module parameters
+static bool sur40_xinput = 0;
+module_param(sur40_xinput, bool, 0644);
 MODULE_PARM_DESC(sur40_xinput, "enable xinput device");
-static bool sur40_v4l2 = 1;             /* default to on */
-module_param(sur40_v4l2, bool, 0644);  /* a Boolean type */
-MODULE_PARM_DESC(sur40_v4l2, "enable v4l2 device");
+static bool sur40_camera = 0;
+module_param(sur40_camera, bool, 0644);
+MODULE_PARM_DESC(sur40_camera, "enable v4l2 camera");
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -684,7 +684,7 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->vdev.queue = &sur40->queue;
 	video_set_drvdata(&sur40->vdev, sur40);
 
-	error = video_register_device(&sur40->vdev, VFL_TYPE_TOUCH, -1);
+	error = video_register_device(&sur40->vdev, sur40_camera?VFL_TYPE_GRABBER:VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video subdevice.");
@@ -847,7 +847,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 {
 	if (i->index != 0)
 		return -EINVAL;
-	i->type = V4L2_INPUT_TYPE_TOUCH;
+	i->type = sur40_camera?V4L2_INPUT_TYPE_CAMERA:V4L2_INPUT_TYPE_TOUCH;
 	i->std = V4L2_STD_UNKNOWN;
 	strlcpy(i->name, "In-Cell Sensor", sizeof(i->name));
 	i->capabilities = 0;
@@ -1115,9 +1115,9 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_g_input		= sur40_vidioc_g_input,
 	.vidioc_s_input		= sur40_vidioc_s_input,
 
-	.vidioc_queryctrl = sur40_vidioc_queryctrl,
-        .vidioc_g_ctrl    = sur40_vidioc_g_ctrl,
-        .vidioc_s_ctrl    = sur40_vidioc_s_ctrl,
+	.vidioc_queryctrl	= sur40_vidioc_queryctrl,
+	.vidioc_g_ctrl		= sur40_vidioc_g_ctrl,
+	.vidioc_s_ctrl		= sur40_vidioc_s_ctrl,
 
 	.vidioc_reqbufs		= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs	= vb2_ioctl_create_bufs,
