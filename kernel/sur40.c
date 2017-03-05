@@ -140,7 +140,6 @@ struct sur40_image_header {
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
 
-
 #define SUR40_BRIGHTNESS_MAX 0xFF
 #define SUR40_BRIGHTNESS_MIN 0x00
 #define SUR40_BRIGHTNESS_DEF 0xFF
@@ -156,6 +155,7 @@ struct sur40_image_header {
 int sur40_v4l2_brightness = SUR40_BRIGHTNESS_DEF; // infrared
 int sur40_v4l2_contrast   = SUR40_CONTRAST_DEF;   // blacklevel
 int sur40_v4l2_gain       = SUR40_GAIN_DEF;       // gain
+int sur40_v4l2_backlight  = 1;			  // preprocessor
 
 // module parameters
 static bool sur40_xinput = 0;
@@ -268,6 +268,10 @@ static int sur40_poke( struct sur40_state *dev, u8 offset, u8 value )
 
 error:
 	return result;
+}
+
+static void sur40_set_preprocessor( struct sur40_state *handle, u8 value ) {
+
 }
 
 static void sur40_set_vsvideo( struct sur40_state *handle, u8 value ) {
@@ -941,6 +945,15 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->maximum = SUR40_GAIN_MAX;
 		qc->step = 1;
 		return 0;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		qc->flags = 0;
+		sprintf(qc->name,"Preprocessor");
+		qc->type = V4L2_CTRL_TYPE_INTEGER;
+		qc->minimum = 0;
+		qc->default_value = 1;
+		qc->maximum = 1;
+		qc->step = 1;
+		return 0;
 	default:
 		qc->flags = V4L2_CTRL_FLAG_DISABLED;
 		return -EINVAL;
@@ -959,6 +972,8 @@ static int sur40_vidioc_g_ctrl(struct file *file, void *fh,
 		return 0;
 	case V4L2_CID_GAIN:
 		ctrl->value = sur40_v4l2_gain;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		ctrl->value = sur40_v4l2_backlight;
 		return 0;
 	default:
 		return -EINVAL;
@@ -982,14 +997,18 @@ static int sur40_vidioc_s_ctrl(struct file *file, void *fh,
 		if (sur40_v4l2_contrast < SUR40_CONTRAST_MIN) sur40_v4l2_contrast = SUR40_CONTRAST_MIN;
 		else if (sur40_v4l2_contrast > SUR40_CONTRAST_MAX) sur40_v4l2_contrast = SUR40_CONTRAST_MAX;
 		value = (sur40_v4l2_contrast << 4) + sur40_v4l2_gain;
-		sur40_set_vsvideo(sur40, value );
+		sur40_set_vsvideo(sur40, value);
 		return 0;
 	case V4L2_CID_GAIN:
 		sur40_v4l2_gain = ctrl->value;
 		if (sur40_v4l2_gain < SUR40_GAIN_MIN) sur40_v4l2_gain = SUR40_GAIN_MIN;
 		else if (sur40_v4l2_gain > SUR40_GAIN_MAX) sur40_v4l2_gain = SUR40_GAIN_MAX;
 		value = (sur40_v4l2_contrast << 4) + sur40_v4l2_gain;
-		sur40_set_vsvideo(sur40, value );
+		sur40_set_vsvideo(sur40, value);
+		return 0;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		sur40_v4l2_backlight = ctrl->value;
+		sur40_set_preprocessor(sur40, sur40_v4l2_backlight);
 		return 0;
 	default:
 		return -EINVAL;
