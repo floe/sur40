@@ -972,6 +972,7 @@ static int sur40_vidioc_g_ctrl(struct file *file, void *fh,
 		return 0;
 	case V4L2_CID_GAIN:
 		ctrl->value = sur40_v4l2_gain;
+		return 0;
 	case V4L2_CID_BACKLIGHT_COMPENSATION:
 		ctrl->value = sur40_v4l2_backlight;
 		return 0;
