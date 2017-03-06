@@ -135,7 +135,9 @@ struct sur40_image_header {
 #define SUR40_GET_VERSION 0xb0 /* 12 bytes string    */
 #define SUR40_ACCEL_CAPS  0xb3 /*  5 bytes           */
 #define SUR40_SENSOR_CAPS 0xc1 /* 24 bytes           */
-#define SUR40_POKE        0xc5
+
+#define SUR40_POKE        0xc5 /* poke register byte */
+#define SUR40_PEEK        0xc4 /* 48 bytes registers */
 
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
