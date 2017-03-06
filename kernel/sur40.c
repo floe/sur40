@@ -272,8 +272,31 @@ error:
 	return result;
 }
 
-static void sur40_set_preprocessor( struct sur40_state *handle, u8 value ) {
+static void sur40_set_preprocessor( struct sur40_state *handle, u8 value )
+{
+	u8 setting_07[2] = { 0x01, 0x00 };
+	u8 setting_17[2] = { 0x85, 0x80 };
+	int result;
 
+	if (value > 1)
+		return -ERANGE;
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x07, setting_07[value], NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x17, setting_17[value], NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+error:
+	return result;
 }
 
 static void sur40_set_vsvideo( struct sur40_state *handle, u8 value ) {
