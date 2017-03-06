@@ -272,7 +272,7 @@ error:
 	return result;
 }
 
-static void sur40_set_preprocessor( struct sur40_state *handle, u8 value )
+static void sur40_set_preprocessor( struct sur40_state *dev, u8 value )
 {
 	u8 setting_07[2] = { 0x01, 0x00 };
 	u8 setting_17[2] = { 0x85, 0x80 };
