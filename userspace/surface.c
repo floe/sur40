@@ -413,9 +413,11 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 			packet_id = header->packet_id;
 		}
 
-		// sanity check. when video data is also being retrieved, the packet ID
-		// will usually increase in the middle of a series instead of at the end.
-		if (packet_id != header->packet_id) { printf("packet ID mismatch\n"); }
+		// sanity check. when video data is also being retrieved, or the number of
+		// blobs is >= 9, the packet ID will usually increase in the middle of a
+		// series instead of at the end. however, the data is still consistent, so
+		// the packet ID is probably just valid for the first packet in a series.
+		// if (packet_id != header->packet_id) { printf("packet ID mismatch\n"); }
 
 		int packet_blobs = result / sizeof(surface_blob);
 
