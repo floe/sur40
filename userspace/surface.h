@@ -44,7 +44,7 @@ struct surface_blob {
 	uint16_t blob_id;
 
 	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?) 
-	uint8_t unknown;    // always 0x01 or 0x02 (no idea what this is?)
+	uint8_t type;       // 0x01 blob, 0x02 finger, 0x04 tag (bitmask)
 
 	uint16_t bb_pos_x;  // upper left corner of bounding box
 	uint16_t bb_pos_y;
@@ -64,7 +64,10 @@ struct surface_blob {
 	float    angle;     // orientation in radians relative to x axis
 	uint32_t area;      // size in pixels/pressure (?)
 
-	uint8_t padding[32];
+	uint8_t padding[24];
+
+	uint32_t tag_id;
+	uint32_t unknown;
 };
 
 
