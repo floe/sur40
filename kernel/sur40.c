@@ -59,7 +59,7 @@ struct sur40_blob {
 	__le16 blob_id;
 
 	u8 action;         /* 0x02 = enter/exit, 0x03 = update (?) */
-	u8 unknown;        /* always 0x01 or 0x02 (no idea what this is?) */
+	u8 type;           /* bitmask (0x01 blob,  0x02 touch, 0x04 tag) */
 
 	__le16 bb_pos_x;   /* upper left corner of bounding box */
 	__le16 bb_pos_y;
@@ -141,6 +141,10 @@ struct sur40_image_header {
 
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
+
+#define SUR40_BLOB	0x01
+#define SUR40_TOUCH	0x02
+#define SUR40_TAG	0x04
 
 #define SUR40_BRIGHTNESS_MAX 0xFF
 #define SUR40_BRIGHTNESS_MIN 0x00
@@ -388,6 +392,7 @@ static void sur40_close(struct input_polled_dev *polldev)
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
 	int wide, major, minor;
+	int type = MT_TOOL_FINGER;
 
 	int bb_size_x = le16_to_cpu(blob->bb_size_x);
 	int bb_size_y = le16_to_cpu(blob->bb_size_y);
@@ -403,7 +408,8 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 		return;
 
 	input_mt_slot(input, slotnum);
-	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
+	if (blob->type < SUR40_TOUCH) type = MT_TOOL_PALM;
+	input_mt_report_slot_state(input, type, 1);
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
 	minor = min(bb_size_x, bb_size_y);
