@@ -158,6 +158,10 @@ struct sur40_image_header {
 #define SUR40_GAIN_MIN 0x00
 #define SUR40_GAIN_DEF 0x08
 
+#define SUR40_BACKLIGHT_MAX 0x01
+#define SUR40_BACKLIGHT_MIN 0x00
+#define SUR40_BACKLIGHT_DEF 0x01
+
 int sur40_v4l2_brightness = SUR40_BRIGHTNESS_DEF; // infrared
 int sur40_v4l2_contrast   = SUR40_CONTRAST_DEF;   // blacklevel
 int sur40_v4l2_gain       = SUR40_GAIN_DEF;       // gain
@@ -315,7 +319,6 @@ static void sur40_set_irlevel( struct sur40_state *handle, u8 value ) {
 		sur40_poke( handle, 0x08+(2*i), value );
 }
 
-
 /* Initialization routine, called from sur40_open */
 static int sur40_init(struct sur40_state *dev)
 {
@@ -371,6 +374,11 @@ static void sur40_open(struct input_polled_dev *polldev)
 
 	dev_dbg(sur40->dev, "open\n");
 	sur40_init(sur40);
+
+	// set default values
+	sur40_set_irlevel(sur40, SUR40_BRIGHTNESS_DEF);
+	sur40_set_vsvideo(sur40, (SUR40_CONTRAST_DEF << 4) + SUR40_GAIN_DEF);
+	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
 /* Disable device, polling has stopped. */
@@ -980,9 +988,9 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->flags = 0;
 		sprintf(qc->name,"Preprocessor");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = 0;
-		qc->default_value = 1;
-		qc->maximum = 1;
+		qc->minimum = SUR40_BACKLIGHT_MIN;
+		qc->default_value = SUR40_BACKLIGHT_DEF;
+		qc->maximum = SUR40_BACKLIGHT_MAX;
 		qc->step = 1;
 		return 0;
 	default:
