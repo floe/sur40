@@ -19,7 +19,6 @@
 
 #include "Sur40_TUIO.h"
 
-
 Sur40_TUIO *sur40_tuio = NULL;
 usb_dev_handle* sur40 = NULL;
 

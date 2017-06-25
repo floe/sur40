@@ -22,17 +22,9 @@
 
 #include "surface.h"
 #include "TuioServer.h"
-#include "TuioCursor.h"
-#include "TuioObject.h"
-#include "TuioBlob.h"
-#include "osc/OscTypes.h"
-#include <list>
-#include <math.h>
-#include <signal.h>
-
-#include "FlashSender.h"
-#include "TcpSender.h"
-#include "WebSockSender.h"
+#ifndef WIN32
+	#include <signal.h>
+#endif
 
 using namespace TUIO;
 
