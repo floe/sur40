@@ -97,7 +97,7 @@ void Sur40_TUIO::run() {
 		tuioServer->removeUntouchedStoppedBlobs();
 		tuioServer->removeUntouchedStoppedCursors();
 		tuioServer->removeUntouchedStoppedObjects();
-	        ((TuioServer*)tuioServer)->commitFrame();
+	        tuioServer->commitFrame();
 
 		if ((frame++ % 60) == 0) printf("status 0x%08x\n",surface_get_status(sur40));
         }
