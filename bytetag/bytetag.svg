@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.0"
+         id="bytetag" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg"
+         xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0" y="0" width="75" height="75" viewBox="0 0 75 75" xml:space="preserve">
+<g id="symbol">
+	<rect id="background" x="0" y="0" fill="#000000" width="75" height="75"/>
+	<circle id="center" fill="#FFFFFF" cx="37.5" cy="37.5" r="12.5"/>
+	<circle id="left"   fill="#FFFFFF" cx="9.5"  cy="37.5" r="8"/>
+	<circle id="right"  fill="#FFFFFF" cx="65.5" cy="37.5" r="8"/>
+	<circle id="bottom" fill="#FFFFFF" cx="37.5" cy="65.5" r="8"/>
+</g>
+<g id="bits">
+        <circle id="bit0" fill="#FFFFFF" cx="17.12" cy="6.92"  r="8"/>
+        <circle id="bit1" fill="#FFFFFF" cx="6.92"  cy="17.12" r="8"/>
+        <circle id="bit2" fill="#FFFFFF" cx="6.92"  cy="57.88" r="8"/>
+        <circle id="bit3" fill="#FFFFFF" cx="17.12" cy="68.08" r="8"/>
+        <circle id="bit4" fill="#FFFFFF" cx="57.88" cy="68.08" r="8"/>
+        <circle id="bit5" fill="#FFFFFF" cx="68.08" cy="57.88" r="8"/>
+        <circle id="bit6" fill="#FFFFFF" cx="68.08" cy="17.12" r="8"/>
+        <circle id="bit7" fill="#FFFFFF" cx="57.88" cy="6.92"  r="8"/>
+</g>
+</svg>
