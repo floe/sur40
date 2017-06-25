@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 		std::cout << "no SUR40 found" << std::endl;
 		return 0;
 	}
-        surface_init( sur40 );
+        surface_init(sur40);
 
 	TuioServer *server;
 	if( argc == 3 ) {
@@ -146,5 +146,6 @@ int main(int argc, char* argv[])
 
 	delete sur40_tuio;
 	delete server;
+	usb_close(sur40);
 	return 0;
 }
