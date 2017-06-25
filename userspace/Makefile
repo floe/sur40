@@ -5,7 +5,7 @@ all: test view calib
 clean:
 	rm *.o test view
 
-%.o: %.c surface.h
+%.o: %.cpp surface.h
 	g++ $(CFLAGS) -c -o $@ $<
 
 test: test.o surface.o
