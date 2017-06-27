@@ -1,19 +1,23 @@
 CFLAGS=-ggdb -Wall
 
+%.o: %.cpp surface.h
+	@echo [CXX] $@
+	@ $(CXX) $(CXXFLAGS) -o $@ -c $<
+
 all: test view calib
 
 clean:
 	rm -f *.o test view
 
-%.o: %.cpp surface.h
-	g++ $(CFLAGS) -c -o $@ $<
-
 test: test.o surface.o
-	g++ $(CFLAGS) -o $@ $^ -lusb
+	@echo [LD] $@
+	@ $(CXX) $(CFLAGS) -o $@ $^ -lusb
 
 view: view.o surface.o
-	g++ $(CFLAGS) -o $@ $^ -lusb -lGL -lGLU -lglut
+	@echo [LD] $@
+	@ $(CXX) $(CFLAGS) -o $@ $^ -lusb -lGL -lGLU -lglut
 
 calib: calib.o surface.o
-	g++ $(CFLAGS) -o $@ $^ -lusb -lGL -lGLU -lglut
+	@echo [LD] $@
+	@ $(CXX) $(CFLAGS) -o $@ $^ -lusb -lGL -lGLU -lglut
 
