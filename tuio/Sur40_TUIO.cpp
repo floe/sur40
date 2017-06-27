@@ -21,6 +21,7 @@
 
 Sur40_TUIO *sur40_tuio = NULL;
 usb_dev_handle* sur40 = NULL;
+bool verbose = false;
 
 static void terminate (int param)
 {
@@ -34,7 +35,7 @@ Sur40_TUIO::Sur40_TUIO(TuioServer *server)
 {
 	tuioServer = server;
 	tuioServer->setSourceName("sur40");
-	tuioServer->setVerbose(true);
+	tuioServer->setVerbose(verbose);
 }
 
 void Sur40_TUIO::stop() {
@@ -44,29 +45,31 @@ void Sur40_TUIO::stop() {
 void Sur40_TUIO::run() {
 
         surface_blob blob[256];
-        int result,frame = 0;
+        int result, count = 0;
 
         while (running) {
 
                 result = surface_get_blobs( sur40, blob );
-                if (result <= 0) {
-			usleep(1);
+		count = tuioServer->getTuioObjectCount() + tuioServer->getTuioCursorCount();// + tuioServer->getTuioBlobCount();
+
+                if ((result <= 0) && (count<=0)) {
+			usleep(10000);
 			continue;
 		}
 
 		TuioTime frameTime = TuioTime::getSystemTime();
 		tuioServer->initFrame(frameTime);
 
-                printf("%d blobs\n",result);
+                //printf("%d blobs\n",result);
                 for (int i = 0; i < result; i++) {
 
 			switch(blob[i].type) {
 				case 0x01: {	// blob
-					TuioBlob *tblb = tuioServer->getTuioBlob(blob[i].blob_id);
+					/*TuioBlob *tblb = tuioServer->getTuioBlob(blob[i].blob_id);
 					if (tblb==NULL) {
 						tblb = tuioServer->addTuioBlob(blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));
 						tblb->setSessionID(blob[i].blob_id);
-					} else tuioServer->updateTuioBlob(tblb,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));
+					} else tuioServer->updateTuioBlob(tblb,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));*/
 					break;
 				}
 				case 0x02: {	// touch
@@ -87,18 +90,16 @@ void Sur40_TUIO::run() {
 				}
 			}
 
-                        printf("    x: %d y: %d size: %d\n",blob[i].pos_x,blob[i].pos_y,blob[i].area);
+                        //printf("    x: %d y: %d size: %d\n",blob[i].type,blob[i].pos_x,blob[i].pos_y);
 		}
 
-		tuioServer->stopUntouchedMovingBlobs();
+		//tuioServer->stopUntouchedMovingBlobs();
 		tuioServer->stopUntouchedMovingCursors();
 		tuioServer->stopUntouchedMovingObjects();
-		tuioServer->removeUntouchedStoppedBlobs();
+		//tuioServer->removeUntouchedStoppedBlobs();
 		tuioServer->removeUntouchedStoppedCursors();
 		tuioServer->removeUntouchedStoppedObjects();
 	        tuioServer->commitFrame();
-
-		if ((frame++ % 60) == 0) printf("status 0x%08x\n",surface_get_status(sur40));
         }
 }
 
@@ -118,6 +119,10 @@ int main(int argc, char* argv[])
 		return 0;
 	}
         surface_init(sur40);
+
+	int value = (0xA << 4) + 0x08;
+	surface_set_vsvideo( sur40, value );
+	surface_set_irlevel( sur40, 0xFF );
 
 	TuioServer *server;
 	if( argc == 3 ) {
