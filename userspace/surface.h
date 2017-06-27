@@ -143,8 +143,8 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* blob );
 void surface_calib_start( usb_dev_handle* handle );
 void surface_calib_end( usb_dev_handle* handle );
 
-void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value );
-void surface_set_irlevel( usb_dev_handle* handle, uint8_t value );
+void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value = 0xA8 );
+void surface_set_irlevel( usb_dev_handle* handle, uint8_t value = 0xFF );
 void surface_peek( usb_dev_handle* handle );
 
 int surface_read_calib( usb_dev_handle* handle, surface_calib* calib );

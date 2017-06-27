@@ -117,9 +117,8 @@ int main(int argc, char* argv[])
 	}
         surface_init(sur40);
 
-	int value = (0xA << 4) + 0x08;
-	surface_set_vsvideo( sur40, value );
-	surface_set_irlevel( sur40, 0xFF );
+	surface_set_vsvideo(sur40);
+	surface_set_irlevel(sur40);
 
 	TuioServer *server;
 	if( argc == 3 ) {

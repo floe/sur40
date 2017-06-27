@@ -158,6 +158,8 @@ struct sur40_image_header {
 #define SUR40_GAIN_MIN 0x00
 #define SUR40_GAIN_DEF 0x08
 
+#define SUR40_VSVIDEO_DEF 0xA8
+
 #define SUR40_BACKLIGHT_MAX 0x01
 #define SUR40_BACKLIGHT_MIN 0x00
 #define SUR40_BACKLIGHT_DEF 0x01
@@ -376,9 +378,9 @@ static void sur40_open(struct input_polled_dev *polldev)
 	sur40_init(sur40);
 
 	// set default values
-	//sur40_set_irlevel(sur40, SUR40_BRIGHTNESS_DEF);
-	//sur40_set_vsvideo(sur40, (SUR40_CONTRAST_DEF << 4) + SUR40_GAIN_DEF);
-	//sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
+	sur40_set_irlevel(sur40, SUR40_BRIGHTNESS_DEF);
+	sur40_set_vsvideo(sur40, SUR40_VSVIDEO_DEF);
+	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
 /* Disable device, polling has stopped. */
