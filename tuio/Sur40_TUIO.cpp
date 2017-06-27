@@ -52,10 +52,7 @@ void Sur40_TUIO::run() {
                 result = surface_get_blobs( sur40, blob );
 		count = tuioServer->getTuioObjectCount() + tuioServer->getTuioCursorCount();// + tuioServer->getTuioBlobCount();
 
-                if ((result <= 0) && (count<=0)) {
-			usleep(10000);
-			continue;
-		}
+                if ((result <= 0) && (count<=0)) continue;
 
 		TuioTime frameTime = TuioTime::getSystemTime();
 		tuioServer->initFrame(frameTime);
