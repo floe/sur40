@@ -1,4 +1,5 @@
-CFLAGS=-ggdb -Wall
+#CFLAGS=-ggdb -Wall
+CFLAGS=-O3 -w
 
 %.o: %.cpp surface.h
 	@echo [CXX] $@
@@ -7,7 +8,7 @@ CFLAGS=-ggdb -Wall
 all: test view calib
 
 clean:
-	rm -f *.o test view
+	rm -f *.o test view calib
 
 test: test.o surface.o
 	@echo [LD] $@

@@ -4,8 +4,8 @@ ENDIANESS=OSC_HOST_LITTLE_ENDIAN
 SUR40_TUIO = Sur40_TUIO
 
 INCLUDES = -I./TUIO -I./oscpack -I../userspace
-#CFLAGS  = -g -Wall -O3 -fPIC
-CFLAGS  = -w -O3 -fPIC
+#CFLAGS  = -g -Wall
+CFLAGS  = -w -O3
 CXXFLAGS = $(CFLAGS) $(INCLUDES) -D$(ENDIANESS)
 
 SUR40_SOURCES = Sur40_TUIO.cpp ../userspace/surface.cpp
