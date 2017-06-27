@@ -56,7 +56,7 @@ struct surface_blob {
 	uint16_t pos_y;
 
 	uint16_t ctr_x;     // centroid position
-	uint16_t ctr_y; 
+	uint16_t ctr_y;
 
 	uint16_t axis_x;    // somehow related to major/minor axis, mostly:
 	uint16_t axis_y;    // axis_x == bb_size_y && axis_y == bb_size_x 
@@ -133,7 +133,7 @@ int surface_get_status( usb_dev_handle* handle );
 void surface_get_sensors( usb_dev_handle* handle );
 
 // initialization sequence
-void surface_init( usb_dev_handle* handle );
+void surface_init( usb_dev_handle* handle, bool verbose = false );
 
 // retrieve raw data from surface
 int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufsize = VIDEO_BUFFER_SIZE );

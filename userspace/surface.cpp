@@ -37,7 +37,7 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 	usb_find_devices();
 
 	struct usb_bus* busses = usb_get_busses();
-		
+
 	for (struct usb_bus* bus = busses; bus; bus = bus->next) {
 		for (struct usb_device* dev = bus->devices; dev; dev = dev->next) {
 			if ((dev->descriptor.idVendor == vendor) && (dev->descriptor.idProduct == product)) {
@@ -63,10 +63,10 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 #define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors   - sent once per second, response probably 0xZZXXYYTT
 
 // get version info
-void surface_get_version( usb_dev_handle* handle, uint16_t index ) {
+void surface_get_version( usb_dev_handle* handle, uint16_t index , bool verbose = false) {
 	uint8_t buf[13]; buf[12] = 0;
 	usb_control_msg( handle, 0xC0, SURFACE_GET_VERSION, 0x00, index, (char*)buf, 12, timeout );
-	printf("version string 0x%02x: %s\n", index, buf);
+	if (verbose) printf("version string 0x%02x: %s\n", index, buf);
 }
 
 // get device status word
@@ -77,26 +77,28 @@ int surface_get_status( usb_dev_handle* handle ) {
 }
 
 // get sensor status
-void surface_get_sensors( usb_dev_handle* handle ) {
+void surface_get_sensors( usb_dev_handle* handle, bool verbose = false ) {
 	surface_sensors sensors;
 	usb_control_msg( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (char*)(&sensors), 8, timeout );
-	printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
+	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
 }
 
 // other commands
-void surface_command( usb_dev_handle* handle, uint16_t cmd, uint16_t index, uint16_t len ) {
+void surface_command( usb_dev_handle* handle, uint16_t cmd, uint16_t index, uint16_t len, bool verbose = false ) {
 	uint8_t buf[24];
 	usb_control_msg( handle, 0xC0, cmd, 0x00, index, (char*)buf, len, timeout );
-	printf("command 0x%02x,0x%02x: ", cmd, index ); 
-	for (int i = 0; i < len; i++) printf("0x%02x ", buf[i]);
-	printf("\n");
+	if (verbose) {
+		printf("command 0x%02x,0x%02x: ", cmd, index );
+		for (int i = 0; i < len; i++) printf("0x%02x ", buf[i]);
+		printf("\n");
+	}
 }
 
 // mindless repetition of the microsoft driver's init sequence.
 // quite probably unnecessary, but leave it like this for now.
-void surface_init( usb_dev_handle* handle ) {
+void surface_init( usb_dev_handle* handle, bool verbose ) {
 
-	printf("microsoft surface 2.0 open source driver 0.0.1\n");
+	if (verbose) printf("microsoft surface 2.0 open source driver 0.0.1\n");
 
  	surface_get_version(handle, 0x00);
 	surface_get_version(handle, 0x01);
