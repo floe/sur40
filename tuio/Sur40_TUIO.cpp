@@ -100,12 +100,18 @@ void Sur40_TUIO::run() {
                         //printf("    x: %d y: %d size: %d\n",blob[i].type,blob[i].pos_x,blob[i].pos_y);
 		}
 
-		//tuioServer->stopUntouchedMovingBlobs();
-		tuioServer->stopUntouchedMovingCursors();
-		tuioServer->stopUntouchedMovingObjects();
-		//tuioServer->removeUntouchedStoppedBlobs();
-		tuioServer->removeUntouchedStoppedCursors();
-		tuioServer->removeUntouchedStoppedObjects();
+		if (tuioServer->hasBlobProfile()) {
+			tuioServer->stopUntouchedMovingBlobs();
+			tuioServer->removeUntouchedStoppedBlobs();
+		}
+		if (tuioServer->hasCursorProfile()) {
+			tuioServer->stopUntouchedMovingCursors();
+			tuioServer->removeUntouchedStoppedCursors();
+		}
+		if (tuioServer->hasObjectProfile()) {
+			tuioServer->stopUntouchedMovingObjects();
+			tuioServer->removeUntouchedStoppedObjects();
+		}
 	        tuioServer->commitFrame();
         }
 }
