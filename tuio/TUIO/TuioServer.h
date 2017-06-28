@@ -141,7 +141,7 @@ namespace TUIO {
 		void disablePeriodicMessages() {
 			periodic_update = false;
 		}
-		
+
 		/**
 		 * Returns true if the periodic update of all currently active TuioObjects, TuioCursors and TuioBlobs is enabled.
 		 * @return	true if the periodic update of all currently active TuioObjects, TuioCursors and TuioBlobs is enabled
@@ -149,7 +149,7 @@ namespace TUIO {
 		bool periodicMessagesEnabled() {
 			return periodic_update;
 		}
-		
+
 		/**
 		 * Returns the periodic update interval in seconds.
 		 * @return	the periodic update interval in seconds
@@ -157,7 +157,7 @@ namespace TUIO {
 		int getUpdateInterval() {
 			return update_interval;
 		}
-		
+
 		/**
 		 * Commits the current frame.
 		 * Generates and sends TUIO messages of all currently active and updated TuioObjects, TuioCursors and TuioBlobs.
@@ -168,7 +168,7 @@ namespace TUIO {
 		 * Commits the current frame.
 		 * Generates and sends TUIO messages of all currently active and updated TuioObjects, TuioCursors and TuioBlobs.
 		 */
-		
+
 		/**
 		 * Defines the name of this TUIO source, which is transmitted within the /tuio/[profile] source message.
 		 *
@@ -176,35 +176,36 @@ namespace TUIO {
 		 */
 		void setSourceName(const char *name);
 
-		
 		/**
 		 * Defines the name and IP address of this TUIO source, which is transmitted within the /tuio/[profile] source message.
 		 *
 		 * @param	name	the desired name of this TUIO source
 		 * @param	ip		the local IP address
-		 */		
+		 */
 		void setSourceName(const char *name, const char *ip);
-		
-		
-		
+
 		void addOscSender(OscSender *sender);
-		
+
 		void enableObjectProfile(bool flag) { objectProfileEnabled = flag; };
 		void enableCursorProfile(bool flag) { cursorProfileEnabled = flag; };
 		void enableBlobProfile(bool flag) { blobProfileEnabled = flag; };
-				
+
+		bool hasObjectProfile() { return objectProfileEnabled; };
+		bool hasCursorProfile() { return cursorProfileEnabled; };
+		bool hasBlobProfile() { return blobProfileEnabled; };
+
 	private:
-			
+
 		void initialize(OscSender *oscsend);
 
 		std::vector<OscSender*> senderList;
 		void deliverOscPacket(osc::OutboundPacketStream  *packet);
-		
+
 		osc::OutboundPacketStream  *oscPacket;
-		char *oscBuffer; 
+		char *oscBuffer;
 		osc::OutboundPacketStream  *fullPacket;
-		char *fullBuffer; 
-		
+		char *fullBuffer;
+
 		void startObjectBundle();
 		void addObjectMessage(TuioObject *tobj);
 		void sendObjectBundle(long fseq);
@@ -219,11 +220,11 @@ namespace TUIO {
 		void addBlobMessage(TuioBlob *tblb);
 		void sendBlobBundle(long fseq);
 		void sendEmptyBlobBundle();
-		
+
 		int update_interval;
 		bool full_update, periodic_update;
 		TuioTime objectUpdateTime, cursorUpdateTime, blobUpdateTime ;
-		bool objectProfileEnabled, cursorProfileEnabled, blobProfileEnabled;		
+		bool objectProfileEnabled, cursorProfileEnabled, blobProfileEnabled;
 		char *source_name;
 	};
 }

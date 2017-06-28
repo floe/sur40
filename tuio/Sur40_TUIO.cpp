@@ -1,7 +1,7 @@
 /*
     SUR40 TUIO Server
     Copyright (c) 2017 Martin Kaltenbrunner <martin@tuio.org>
- 
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -36,6 +36,10 @@ Sur40_TUIO::Sur40_TUIO(TuioServer *server)
 	tuioServer = server;
 	tuioServer->setSourceName("sur40");
 	tuioServer->setVerbose(verbose);
+
+	tuioServer->enableObjectProfile(true);
+        tuioServer->enableCursorProfile(true);
+        tuioServer->enableBlobProfile(false);;
 }
 
 void Sur40_TUIO::stop() {
@@ -62,27 +66,33 @@ void Sur40_TUIO::run() {
 
 			switch(blob[i].type) {
 				case 0x01: {	// blob
-					/*TuioBlob *tblb = tuioServer->getTuioBlob(blob[i].blob_id);
-					if (tblb==NULL) {
-						tblb = tuioServer->addTuioBlob(blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));
-						tblb->setSessionID(blob[i].blob_id);
-					} else tuioServer->updateTuioBlob(tblb,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));*/
+					if (tuioServer->hasBlobProfile()) {
+						TuioBlob *tblb = tuioServer->getTuioBlob(blob[i].blob_id);
+						if (tblb==NULL) {
+							tblb = tuioServer->addTuioBlob(blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));
+							tblb->setSessionID(blob[i].blob_id);
+						} else tuioServer->updateTuioBlob(tblb,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle,blob[i].bb_size_x/width,blob[i].bb_size_y/height,blob[i].area/(width*height));
+					}
 					break;
 				}
 				case 0x02: {	// touch
-					TuioCursor *tcur = tuioServer->getTuioCursor(blob[i].blob_id);
-					if (tcur==NULL) {
-						tcur = tuioServer->addTuioCursor(blob[i].pos_x/width,blob[i].pos_y/height);
-						tcur->setSessionID(blob[i].blob_id);
-					} else tuioServer->updateTuioCursor(tcur,blob[i].pos_x/width,blob[i].pos_y/height);
+					if (tuioServer->hasCursorProfile()) {
+						TuioCursor *tcur = tuioServer->getTuioCursor(blob[i].blob_id);
+						if (tcur==NULL) {
+							tcur = tuioServer->addTuioCursor(blob[i].pos_x/width,blob[i].pos_y/height);
+							tcur->setSessionID(blob[i].blob_id);
+						} else tuioServer->updateTuioCursor(tcur,blob[i].pos_x/width,blob[i].pos_y/height);
+					}
 					break;
 				}
 				case 0x04: {	// tag
-					TuioObject *tobj = tuioServer->getTuioObject(blob[i].blob_id);
-					if (tobj==NULL) {
-						tobj = tuioServer->addTuioObject(blob[i].tag_id,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle);
-						tobj->setSessionID(blob[i].blob_id);
-					} else tuioServer->updateTuioObject(tobj,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle);
+					if (tuioServer->hasObjectProfile()) {
+						TuioObject *tobj = tuioServer->getTuioObject(blob[i].blob_id);
+						if (tobj==NULL) {
+							tobj = tuioServer->addTuioObject(blob[i].tag_id,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle);
+							tobj->setSessionID(blob[i].blob_id);
+						} else tuioServer->updateTuioObject(tobj,blob[i].pos_x/width,blob[i].pos_y/height,blob[i].angle);
+					}
 					break;
 				}
 			}
