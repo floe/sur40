@@ -180,7 +180,7 @@ void surface_calib_accumulate_black( usb_dev_handle* handle ) {
 	usleep(4500000);
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
 }
-	
+
 void surface_calib_setup( usb_dev_handle* handle ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout ); // CaptureMode = RawFullFrame
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
@@ -341,6 +341,17 @@ void surface_set_irlevel( usb_dev_handle* handle, uint8_t value ) {
 		surface_poke( handle, 0x08+(2*i), value );
 }
 
+void surface_set_preprocessor( usb_dev_handle* handle, uint8_t value )
+{
+	uint8_t setting_07[2] = { 0x01, 0x00 };
+	uint8_t setting_17[2] = { 0x85, 0x80 };
+
+	if (value > 1) return;
+
+	surface_poke(handle, 0x07, setting_07[value]);
+	surface_poke(handle, 0x17, setting_17[value]);
+}
+
 void surface_calib_start( usb_dev_handle* handle ) {
 	surface_calib_setup( handle );
 	surface_poke( handle, 0x17, 0x00 ); // WledPwmClkHz = 0
@@ -393,7 +404,7 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 
 	uint8_t buffer[512];
-	uint32_t packet_id;
+	//uint32_t packet_id;
 	int result;
 
 	int need_blobs = -1;
@@ -412,7 +423,7 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 		// first packet
 		if (need_blobs == -1) {
 			need_blobs = header->count;
-			packet_id = header->packet_id;
+			//packet_id = header->packet_id;
 		}
 
 		// sanity check. when video data is also being retrieved, or the number of

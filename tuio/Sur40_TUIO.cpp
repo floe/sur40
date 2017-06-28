@@ -119,6 +119,7 @@ int main(int argc, char* argv[])
 
 	surface_set_vsvideo(sur40);
 	surface_set_irlevel(sur40);
+	surface_set_preprocessor(sur40);
 
 	TuioServer *server;
 	if( argc == 3 ) {
