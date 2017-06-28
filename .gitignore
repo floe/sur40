@@ -1,11 +1,11 @@
+*.o
 kernel/.tmp_versions/
 kernel/Module.symvers
 kernel/modules.order
 kernel/*.mod.c
 kernel/.*.cmd
 kernel/*.ko
-kernel/*.o
-userspace/*.o
 userspace/calib
 userspace/view
 userspace/test
+tuio/Sur40_TUIO

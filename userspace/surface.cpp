@@ -37,7 +37,7 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 	usb_find_devices();
 
 	struct usb_bus* busses = usb_get_busses();
-		
+
 	for (struct usb_bus* bus = busses; bus; bus = bus->next) {
 		for (struct usb_device* dev = bus->devices; dev; dev = dev->next) {
 			if ((dev->descriptor.idVendor == vendor) && (dev->descriptor.idProduct == product)) {
@@ -63,10 +63,10 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 #define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors   - sent once per second, response probably 0xZZXXYYTT
 
 // get version info
-void surface_get_version( usb_dev_handle* handle, uint16_t index ) {
+void surface_get_version( usb_dev_handle* handle, uint16_t index , bool verbose = false) {
 	uint8_t buf[13]; buf[12] = 0;
 	usb_control_msg( handle, 0xC0, SURFACE_GET_VERSION, 0x00, index, (char*)buf, 12, timeout );
-	printf("version string 0x%02x: %s\n", index, buf);
+	if (verbose) printf("version string 0x%02x: %s\n", index, buf);
 }
 
 // get device status word
@@ -77,26 +77,28 @@ int surface_get_status( usb_dev_handle* handle ) {
 }
 
 // get sensor status
-void surface_get_sensors( usb_dev_handle* handle ) {
+void surface_get_sensors( usb_dev_handle* handle, bool verbose = false ) {
 	surface_sensors sensors;
 	usb_control_msg( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (char*)(&sensors), 8, timeout );
-	printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
+	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
 }
 
 // other commands
-void surface_command( usb_dev_handle* handle, uint16_t cmd, uint16_t index, uint16_t len ) {
+void surface_command( usb_dev_handle* handle, uint16_t cmd, uint16_t index, uint16_t len, bool verbose = false ) {
 	uint8_t buf[24];
 	usb_control_msg( handle, 0xC0, cmd, 0x00, index, (char*)buf, len, timeout );
-	printf("command 0x%02x,0x%02x: ", cmd, index ); 
-	for (int i = 0; i < len; i++) printf("0x%02x ", buf[i]);
-	printf("\n");
+	if (verbose) {
+		printf("command 0x%02x,0x%02x: ", cmd, index );
+		for (int i = 0; i < len; i++) printf("0x%02x ", buf[i]);
+		printf("\n");
+	}
 }
 
 // mindless repetition of the microsoft driver's init sequence.
 // quite probably unnecessary, but leave it like this for now.
-void surface_init( usb_dev_handle* handle ) {
+void surface_init( usb_dev_handle* handle, bool verbose ) {
 
-	printf("microsoft surface 2.0 open source driver 0.0.1\n");
+	if (verbose) printf("microsoft surface 2.0 open source driver 0.0.1\n");
 
  	surface_get_version(handle, 0x00);
 	surface_get_version(handle, 0x01);
@@ -178,7 +180,7 @@ void surface_calib_accumulate_black( usb_dev_handle* handle ) {
 	usleep(4500000);
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
 }
-	
+
 void surface_calib_setup( usb_dev_handle* handle ) {
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout ); // CaptureMode = RawFullFrame
 	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
@@ -339,6 +341,17 @@ void surface_set_irlevel( usb_dev_handle* handle, uint8_t value ) {
 		surface_poke( handle, 0x08+(2*i), value );
 }
 
+void surface_set_preprocessor( usb_dev_handle* handle, uint8_t value )
+{
+	uint8_t setting_07[2] = { 0x01, 0x00 };
+	uint8_t setting_17[2] = { 0x85, 0x80 };
+
+	if (value > 1) return;
+
+	surface_poke(handle, 0x07, setting_07[value]);
+	surface_poke(handle, 0x17, setting_17[value]);
+}
+
 void surface_calib_start( usb_dev_handle* handle ) {
 	surface_calib_setup( handle );
 	surface_poke( handle, 0x17, 0x00 ); // WledPwmClkHz = 0
@@ -391,7 +404,7 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 
 	uint8_t buffer[512];
-	uint32_t packet_id;
+	//uint32_t packet_id;
 	int result;
 
 	int need_blobs = -1;
@@ -410,12 +423,14 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 		// first packet
 		if (need_blobs == -1) {
 			need_blobs = header->count;
-			packet_id = header->packet_id;
+			//packet_id = header->packet_id;
 		}
 
-		// sanity check. when video data is also being retrieved, the packet ID
-		// will usually increase in the middle of a series instead of at the end.
-		if (packet_id != header->packet_id) { printf("packet ID mismatch\n"); }
+		// sanity check. when video data is also being retrieved, or the number of
+		// blobs is >= 9, the packet ID will usually increase in the middle of a
+		// series instead of at the end. however, the data is still consistent, so
+		// the packet ID is probably just valid for the first packet in a series.
+		// if (packet_id != header->packet_id) { printf("packet ID mismatch\n"); }
 
 		int packet_blobs = result / sizeof(surface_blob);
 

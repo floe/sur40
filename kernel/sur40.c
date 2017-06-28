@@ -59,7 +59,7 @@ struct sur40_blob {
 	__le16 blob_id;
 
 	u8 action;         /* 0x02 = enter/exit, 0x03 = update (?) */
-	u8 unknown;        /* always 0x01 or 0x02 (no idea what this is?) */
+	u8 type;           /* bitmask (0x01 blob,  0x02 touch, 0x04 tag) */
 
 	__le16 bb_pos_x;   /* upper left corner of bounding box */
 	__le16 bb_pos_y;
@@ -142,6 +142,10 @@ struct sur40_image_header {
 #define SUR40_GET_STATE   0xc5 /*  4 bytes state (?) */
 #define SUR40_GET_SENSORS 0xb1 /*  8 bytes sensors   */
 
+#define SUR40_BLOB	0x01
+#define SUR40_TOUCH	0x02
+#define SUR40_TAG	0x04
+
 #define SUR40_BRIGHTNESS_MAX 0xFF
 #define SUR40_BRIGHTNESS_MIN 0x00
 #define SUR40_BRIGHTNESS_DEF 0xFF
@@ -153,6 +157,12 @@ struct sur40_image_header {
 #define SUR40_GAIN_MAX 0x09
 #define SUR40_GAIN_MIN 0x00
 #define SUR40_GAIN_DEF 0x08
+
+#define SUR40_VSVIDEO_DEF 0xA8
+
+#define SUR40_BACKLIGHT_MAX 0x01
+#define SUR40_BACKLIGHT_MIN 0x00
+#define SUR40_BACKLIGHT_DEF 0x01
 
 int sur40_v4l2_brightness = SUR40_BRIGHTNESS_DEF; // infrared
 int sur40_v4l2_contrast   = SUR40_CONTRAST_DEF;   // blacklevel
@@ -311,7 +321,6 @@ static void sur40_set_irlevel( struct sur40_state *handle, u8 value ) {
 		sur40_poke( handle, 0x08+(2*i), value );
 }
 
-
 /* Initialization routine, called from sur40_open */
 static int sur40_init(struct sur40_state *dev)
 {
@@ -367,6 +376,11 @@ static void sur40_open(struct input_polled_dev *polldev)
 
 	dev_dbg(sur40->dev, "open\n");
 	sur40_init(sur40);
+
+	// set default values
+	sur40_set_irlevel(sur40, SUR40_BRIGHTNESS_DEF);
+	sur40_set_vsvideo(sur40, SUR40_VSVIDEO_DEF);
+	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
 /* Disable device, polling has stopped. */
@@ -388,6 +402,7 @@ static void sur40_close(struct input_polled_dev *polldev)
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
 	int wide, major, minor;
+	int type = MT_TOOL_FINGER;
 
 	int bb_size_x = le16_to_cpu(blob->bb_size_x);
 	int bb_size_y = le16_to_cpu(blob->bb_size_y);
@@ -403,7 +418,8 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 		return;
 
 	input_mt_slot(input, slotnum);
-	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
+	if (blob->type < SUR40_TOUCH) type = MT_TOOL_PALM;
+	input_mt_report_slot_state(input, type, 1);
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
 	minor = min(bb_size_x, bb_size_y);
@@ -466,10 +482,12 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		/*
 		 * Sanity check. when video data is also being retrieved, the
 		 * packet ID will usually increase in the middle of a series
-		 * instead of at the end.
-		 */
+		 * instead of at the end. however, the data is still consistent, so
+		 * the packet ID is probably just valid for the first packet in a series.
+
 		if (packet_id != header->packet_id)
 			dev_dbg(sur40->dev, "packet ID mismatch\n");
+		 */
 
 		packet_blobs = result / sizeof(struct sur40_blob);
 		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
@@ -974,9 +992,9 @@ static int sur40_vidioc_queryctrl(struct file *file, void *fh,
 		qc->flags = 0;
 		sprintf(qc->name,"Preprocessor");
 		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = 0;
-		qc->default_value = 1;
-		qc->maximum = 1;
+		qc->minimum = SUR40_BACKLIGHT_MIN;
+		qc->default_value = SUR40_BACKLIGHT_DEF;
+		qc->maximum = SUR40_BACKLIGHT_MAX;
 		qc->step = 1;
 		return 0;
 	default:

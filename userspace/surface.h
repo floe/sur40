@@ -44,7 +44,7 @@ struct surface_blob {
 	uint16_t blob_id;
 
 	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?) 
-	uint8_t unknown;    // always 0x01 or 0x02 (no idea what this is?)
+	uint8_t type;       // 0x01 blob, 0x02 finger, 0x04 tag (bitmask)
 
 	uint16_t bb_pos_x;  // upper left corner of bounding box
 	uint16_t bb_pos_y;
@@ -56,7 +56,7 @@ struct surface_blob {
 	uint16_t pos_y;
 
 	uint16_t ctr_x;     // centroid position
-	uint16_t ctr_y; 
+	uint16_t ctr_y;
 
 	uint16_t axis_x;    // somehow related to major/minor axis, mostly:
 	uint16_t axis_y;    // axis_x == bb_size_y && axis_y == bb_size_x 
@@ -64,7 +64,10 @@ struct surface_blob {
 	float    angle;     // orientation in radians relative to x axis
 	uint32_t area;      // size in pixels/pressure (?)
 
-	uint8_t padding[32];
+	uint8_t padding[24];
+
+	uint32_t tag_id;
+	uint32_t unknown;
 };
 
 
@@ -130,7 +133,7 @@ int surface_get_status( usb_dev_handle* handle );
 void surface_get_sensors( usb_dev_handle* handle );
 
 // initialization sequence
-void surface_init( usb_dev_handle* handle );
+void surface_init( usb_dev_handle* handle, bool verbose = false );
 
 // retrieve raw data from surface
 int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufsize = VIDEO_BUFFER_SIZE );
@@ -140,8 +143,9 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* blob );
 void surface_calib_start( usb_dev_handle* handle );
 void surface_calib_end( usb_dev_handle* handle );
 
-void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value );
-void surface_set_irlevel( usb_dev_handle* handle, uint8_t value );
+void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value = 0xA8 );
+void surface_set_irlevel( usb_dev_handle* handle, uint8_t value = 0xFF );
+void surface_set_preprocessor( usb_dev_handle* handle, uint8_t value = 0x01);
 void surface_peek( usb_dev_handle* handle );
 
 int surface_read_calib( usb_dev_handle* handle, surface_calib* calib );
