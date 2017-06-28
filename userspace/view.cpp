@@ -27,7 +27,7 @@
 #include <GL/glut.h>
 
 
-usb_dev_handle* s40;
+libusb_device_handle* s40;
 GLuint texture;
 
 int curframe = 0;
@@ -69,11 +69,11 @@ void box( int x1, int y1, int x2, int y2 ) {
 
 void idle() { glutPostRedisplay(); }
 
-void display() {
+uint8_t image[VIDEO_BUFFER_SIZE];
+surface_blob blobs[256];
+char buffer[128];
 
-	uint8_t image[VIDEO_BUFFER_SIZE];
-	surface_blob blobs[256];
-	char buffer[128];
+void display() {
 
 	int curtime = glutGet( GLUT_ELAPSED_TIME );
 	curframe++;
@@ -86,12 +86,12 @@ void display() {
 		printf("%s\n",buffer);
 	}
 
-  // clear buffers
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  // move to origin
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
+	// move to origin
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 	glTranslatef(0,VIDEO_RES_Y,0);
 	glScalef(1.0f, -1.0f, 1.0f);
 
@@ -131,15 +131,15 @@ void display() {
 
 	// white: id
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	char id_buf[64];
 	for (int i = 0; i < bc; i++) {
-		char buf[64]; snprintf(buf,64,"%d",blobs[i].blob_id);	
-		output(blobs[i].ctr_x/2, blobs[i].ctr_y/2,buf);
+		snprintf(id_buf,64,"%d",blobs[i].blob_id);
+		output(blobs[i].ctr_x/2, blobs[i].ctr_y/2,id_buf);
 	}
 
 	output(20,20,buffer);
-
-  // redraw
-  glutSwapBuffers();
+	// redraw
+	glutSwapBuffers();
 }
 
 
@@ -151,7 +151,7 @@ void resize(int w, int h) {
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity();
 	glOrtho( 0.0, w, 0.0, h, -1000, 1000 );
-	
+
   // invalidate display
   glutPostRedisplay();
 }
@@ -159,10 +159,9 @@ void resize(int w, int h) {
 
 void keyboard(unsigned char key, int x, int y) {
   switch (key) {
-    case 'q': 
-			//usb_reset( s40 ); sleep(1);
-			usb_close( s40 );
-			exit(0); 
+    case 'q':
+			sur40_close_device( s40 );
+			exit(0);
 			break;
   }
 }
@@ -201,7 +200,8 @@ void initGL() {
 
 int main(int argc, char* argv[]) {
 
-	s40 = usb_get_device_handle( ID_MICROSOFT, ID_SURFACE );
+	s40 = sur40_get_device_handle();
+	if (s40==NULL) return 0;
 	surface_init( s40 );
 
  	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y);
@@ -220,6 +220,7 @@ int main(int argc, char* argv[]) {
 	// start the action
 	glutMainLoop();
 
+	sur40_close_device(s40);
 	return 0;
 }
 

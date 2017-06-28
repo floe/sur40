@@ -20,7 +20,7 @@
 #include "Sur40_TUIO.h"
 
 Sur40_TUIO *sur40_tuio = NULL;
-usb_dev_handle* sur40 = NULL;
+libusb_device_handle* sur40 = NULL;
 bool verbose = false;
 
 static void terminate (int param)
@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
         signal(SIGTERM,terminate);
 #endif
 
-        sur40 = usb_get_device_handle( ID_MICROSOFT, ID_SURFACE );
+        sur40 = sur40_get_device_handle();
 	if (sur40 == NULL) {
 		std::cout << "no SUR40 found" << std::endl;
 		return 0;
@@ -164,6 +164,6 @@ int main(int argc, char* argv[])
 
 	delete sur40_tuio;
 	delete server;
-	usb_close(sur40);
+	sur40_close_device(sur40);
 	return 0;
 }

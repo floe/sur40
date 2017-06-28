@@ -7,6 +7,7 @@ INCLUDES = -I./TUIO -I./oscpack -I../userspace
 #CFLAGS  = -g -Wall
 CFLAGS  = -w -O3
 CXXFLAGS = $(CFLAGS) $(INCLUDES) -D$(ENDIANESS)
+LD_FLAGS = -lpthread -lusb-1.0
 
 SUR40_SOURCES = Sur40_TUIO.cpp ../userspace/surface.cpp
 COMMON_TUIO_SOURCES = ./TUIO/TuioTime.cpp ./TUIO/TuioPoint.cpp ./TUIO/TuioContainer.cpp ./TUIO/TuioObject.cpp ./TUIO/TuioCursor.cpp ./TUIO/TuioBlob.cpp ./TUIO/TuioDispatcher.cpp ./TUIO/TuioManager.cpp  ./TUIO/OneEuroFilter.cpp
@@ -30,7 +31,7 @@ all: $(SUR40_TUIO)
 
 $(SUR40_TUIO): $(COMMON_TUIO_OBJECTS) $(SERVER_TUIO_OBJECTS) $(OSC_OBJECTS) $(SUR40_OBJECTS) $(COBJECTS)
 	@echo [LD] $(SUR40_TUIO)
-	@ $(CXX) -o $@ $+ -lpthread -lusb $(LD_FLAGS)
+	@ $(CXX) -o $@ $+ $(LD_FLAGS)
 
 clean:
 	@echo [CLEAN] $(SUR40_TUIO)

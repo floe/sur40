@@ -43,7 +43,7 @@ void deinterlace( uint8_t* input, uint8_t* output ) {
 }
 
 
-usb_dev_handle* s40;
+libusb_device_handle* s40;
 GLuint texture;
 int mode = 1;
 
@@ -228,8 +228,8 @@ void keyboard(unsigned char key, int x, int y) {
   switch (key) {
 		case 'q':
 			//usb_reset( s40 ); sleep(1);
-			usb_close( s40 );
-			exit(0); 
+			sur40_close_device( s40 );
+			exit(0);
 			break;
 		case 'c':
 			surface_calib_start( s40 );
@@ -304,7 +304,7 @@ void initGL() {
 
 int main(int argc, char* argv[]) {
 
-	s40 = usb_get_device_handle( ID_MICROSOFT, ID_SURFACE );
+	s40 = sur40_get_device_handle();
 	surface_init( s40 );
 
 	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y*2);
