@@ -93,9 +93,11 @@ struct surface_sensors {
 
 
 // internal calibration for one row
-//struct __attribute__((__packed__)) surface_row_calib {
+#ifdef WIN32
 struct surface_row_calib {
-
+#else
+struct __attribute__((__packed__)) surface_row_calib {
+#endif
 	uint16_t calib[VIDEO_RES_X]; // MSB = black level, LSB = white level?
 
 	// fields below are only valid in first row, 0xFF otherwise
