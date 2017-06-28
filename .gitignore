@@ -9,3 +9,9 @@ userspace/calib
 userspace/view
 userspace/test
 tuio/Sur40_TUIO
+Release
+Debug
+*.suo
+*.sdf
+*.user
+
