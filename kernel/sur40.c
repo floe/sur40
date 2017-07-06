@@ -170,14 +170,14 @@ int sur40_v4l2_gain       = SUR40_GAIN_DEF;       // gain
 int sur40_v4l2_backlight  = 1;			  // preprocessor
 
 // module parameters
-static uint irlevel_param = SUR40_BRIGHTNESS_DEF;
-module_param(irlevel_param, uint, 0644);
+static uint irlevel = SUR40_BRIGHTNESS_DEF;
+module_param(irlevel, uint, 0644);
 MODULE_PARM_DESC(irlevel, "set default irlevel");
-static uint vsvideo_param = SUR40_VSVIDEO_DEF;
-module_param(vsvideo_param, uint, 0644);
+static uint vsvideo = SUR40_VSVIDEO_DEF;
+module_param(vsvideo, uint, 0644);
 MODULE_PARM_DESC(vsvideo, "set default vsvideo");
-static bool videodev_param = 0;
-module_param(videodev_param, bool, 0644);
+static bool videodev = 0;
+module_param(videodev, bool, 0644);
 MODULE_PARM_DESC(videodev, "use /dev/video*");
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
@@ -381,8 +381,8 @@ static void sur40_open(struct input_polled_dev *polldev)
 	sur40_init(sur40);
 
 	// set default values
-	sur40_set_irlevel(sur40, irlevel_param);
-	sur40_set_vsvideo(sur40, vsvideo_param);
+	sur40_set_irlevel(sur40, irlevel);
+	sur40_set_vsvideo(sur40, vsvideo);
 	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
@@ -734,7 +734,7 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->vdev.queue = &sur40->queue;
 	video_set_drvdata(&sur40->vdev, sur40);
 
-	error = video_register_device(&sur40->vdev, videodev_param?VFL_TYPE_GRABBER:VFL_TYPE_TOUCH, -1);
+	error = video_register_device(&sur40->vdev, videodev?VFL_TYPE_GRABBER:VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video subdevice.");
@@ -897,7 +897,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 {
 	if (i->index != 0)
 		return -EINVAL;
-	i->type = videodev_param?V4L2_INPUT_TYPE_CAMERA:V4L2_INPUT_TYPE_TOUCH;
+	i->type = videodev?V4L2_INPUT_TYPE_CAMERA:V4L2_INPUT_TYPE_TOUCH;
 	i->std = V4L2_STD_UNKNOWN;
 	strlcpy(i->name, "In-Cell Sensor", sizeof(i->name));
 	i->capabilities = 0;
