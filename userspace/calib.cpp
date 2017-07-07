@@ -43,7 +43,7 @@ void deinterlace( uint8_t* input, uint8_t* output ) {
 }
 
 
-usb_dev_handle* s40;
+libusb_device_handle* s40;
 GLuint texture;
 int mode = 1;
 
@@ -110,12 +110,12 @@ void display() {
 		printf("%s\n",buffer);
 	}
 
-  // clear buffers
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  // move to origin
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
+	// move to origin
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 	glTranslatef(0,VIDEO_RES_Y*mode,0);
 	glScalef(1.0f, -1.0f, 1.0f);
 
@@ -166,22 +166,22 @@ void display() {
 
 	output(20,20,buffer);
 
-  // redraw
-  glutSwapBuffers();
+	// redraw
+	glutSwapBuffers();
 }
 
 
 void resize(int w, int h) {
 
-  // set a whole-window viewport
-  glViewport(0,0,w,h);
+	// set a whole-window viewport
+	glViewport(0,0,w,h);
 
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity();
 	glOrtho( 0.0, w, 0.0, h, -1000, 1000 );
-	
-  // invalidate display
-  glutPostRedisplay();
+
+	// invalidate display
+	glutPostRedisplay();
 }
 
 surface_calib calibbuf;
@@ -227,9 +227,8 @@ void read_fpga_fw() {
 void keyboard(unsigned char key, int x, int y) {
   switch (key) {
 		case 'q':
-			//usb_reset( s40 ); sleep(1);
-			usb_close( s40 );
-			exit(0); 
+			sur40_close_device( s40 );
+			exit(0);
 			break;
 		case 'c':
 			surface_calib_start( s40 );
@@ -304,7 +303,8 @@ void initGL() {
 
 int main(int argc, char* argv[]) {
 
-	s40 = usb_get_device_handle( ID_MICROSOFT, ID_SURFACE );
+	s40 = sur40_get_device_handle();
+	if (s40==NULL) return 0;
 	surface_init( s40 );
 
 	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y*2);
@@ -323,5 +323,6 @@ int main(int argc, char* argv[]) {
 	// start the action
 	glutMainLoop();
 
+	sur40_close_device( s40 );
 	return 0;
 }

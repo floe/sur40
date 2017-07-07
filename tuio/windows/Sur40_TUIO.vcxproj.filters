@@ -1,0 +1,223 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx</Extensions>
+    </Filter>
+    <Filter Include="Header Files\TUIO">
+      <UniqueIdentifier>{9080b10c-6185-4133-9b1f-8028abffeddb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\oscpack">
+      <UniqueIdentifier>{489f8226-4e5c-415e-b4aa-18f3fcc164fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\oscpack\ip">
+      <UniqueIdentifier>{19cf2a95-bab0-4167-b255-95280550be73}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\oscpack\osc">
+      <UniqueIdentifier>{1758ce91-cf78-43ef-9979-1d66cfa499e5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\oscpack">
+      <UniqueIdentifier>{2a3b781c-4cd7-4ccc-a7a8-9e8387bb7b29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\TUIO">
+      <UniqueIdentifier>{cd9caa12-c7a2-47b6-a9cf-2250fd73bd3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\oscpack\ip">
+      <UniqueIdentifier>{e1c0c3df-bd02-403c-bce2-88183d372dff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\oscpack\osc">
+      <UniqueIdentifier>{2ec6d18a-e94d-4946-9cc3-3f06cba020ac}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Sur40_TUIO.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="TUIO.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\TUIO\FlashSender.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\LibExport.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\OneEuroFilter.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\OscSender.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TcpSender.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioBlob.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioContainer.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioCursor.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioDispatcher.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioListener.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioManager.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioObject.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioPoint.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioServer.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\TuioTime.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\UdpSender.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TUIO\WebSockSender.h">
+      <Filter>Header Files\TUIO</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\MessageMappingOscPacketListener.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscException.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscHostEndianness.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscOutboundPacketStream.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscPacketListener.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscPrintReceivedElements.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscReceivedElements.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\osc\OscTypes.h">
+      <Filter>Header Files\oscpack\osc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\ip\IpEndpointName.h">
+      <Filter>Header Files\oscpack\ip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\ip\NetworkingUtils.h">
+      <Filter>Header Files\oscpack\ip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\ip\PacketListener.h">
+      <Filter>Header Files\oscpack\ip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\ip\TimerListener.h">
+      <Filter>Header Files\oscpack\ip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\oscpack\ip\UdpSocket.h">
+      <Filter>Header Files\oscpack\ip</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\userspace\surface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Sur40_TUIO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libusb\include\libusb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\TUIO\FlashSender.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\OneEuroFilter.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TcpSender.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioBlob.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioContainer.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioCursor.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioDispatcher.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioManager.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioObject.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioPoint.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioServer.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\TuioTime.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\UdpSender.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TUIO\WebSockSender.cpp">
+      <Filter>Source Files\TUIO</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\ip\IpEndpointName.cpp">
+      <Filter>Source Files\oscpack\ip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\ip\win32\NetworkingUtils.cpp">
+      <Filter>Source Files\oscpack\ip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\ip\win32\UdpSocket.cpp">
+      <Filter>Source Files\oscpack\ip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\osc\OscOutboundPacketStream.cpp">
+      <Filter>Source Files\oscpack\osc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\osc\OscPrintReceivedElements.cpp">
+      <Filter>Source Files\oscpack\osc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\osc\OscReceivedElements.cpp">
+      <Filter>Source Files\oscpack\osc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\oscpack\osc\OscTypes.cpp">
+      <Filter>Source Files\oscpack\osc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Sur40_TUIO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\userspace\surface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

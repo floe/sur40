@@ -9,14 +9,27 @@
  *
  */
 
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-
 #include "surface.h"
+#ifndef WIN32
+#include <unistd.h>
+#else
+#include <windows.h>
+
+void usleep(__int64 usec) 
+{ 
+    HANDLE timer; 
+    LARGE_INTEGER ft; 
+
+    ft.QuadPart = -(10*usec); // Convert to 100 nanosecond interval, negative value indicates relative time
+
+    timer = CreateWaitableTimer(NULL, TRUE, NULL); 
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0); 
+    WaitForSingleObject(timer, INFINITE); 
+    CloseHandle(timer); 
+}
+#endif
 
 int timeout = 1000;
-
 
 #define ENDPOINT_VIDEO 0x82
 #define ENDPOINT_BLOBS 0x86
@@ -30,25 +43,35 @@ int timeout = 1000;
 
 /************************* HELPER FUNCTIONS *************************/
 
-usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
+bool kernelDriverDetached = false;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+libusb_device_handle* sur40_get_device_handle() {
 
-	struct usb_bus* busses = usb_get_busses();
+	int result;
 
-	for (struct usb_bus* bus = busses; bus; bus = bus->next) {
-		for (struct usb_device* dev = bus->devices; dev; dev = dev->next) {
-			if ((dev->descriptor.idVendor == vendor) && (dev->descriptor.idProduct == product)) {
-				usb_dev_handle* handle = usb_open(dev);
-				if (!handle) return 0;
-				if (usb_claim_interface( handle, 0 ) < 0) return 0;
-				return handle;
-			}
-		}
+	result = libusb_init(NULL);
+	if(result!=0) return NULL;
+
+	libusb_device_handle* handle = libusb_open_device_with_vid_pid(NULL,ID_MICROSOFT,ID_SURFACE);
+	if (!handle) return NULL;
+
+	if (libusb_kernel_driver_active(handle, 0)) {
+    		result = libusb_detach_kernel_driver(handle, 0);
+    		if (result == 0) kernelDriverDetached = true;
+		else return NULL;
 	}
-	return 0;
+
+	if (libusb_claim_interface( handle, 0 ) < 0) return NULL;
+	return handle;
+}
+
+void sur40_close_device(libusb_device_handle* handle) {
+
+	libusb_release_interface(handle, 0);
+
+	if (kernelDriverDetached) libusb_attach_kernel_driver(handle, 0);
+
+	libusb_exit(NULL);
 }
 
 
@@ -63,30 +86,30 @@ usb_dev_handle* usb_get_device_handle( int vendor, int product ) {
 #define SURFACE_GET_SENSORS 0xb1 //  8 bytes sensors   - sent once per second, response probably 0xZZXXYYTT
 
 // get version info
-void surface_get_version( usb_dev_handle* handle, uint16_t index , bool verbose = false) {
+void surface_get_version( libusb_device_handle* handle, uint16_t index , bool verbose = false) {
 	uint8_t buf[13]; buf[12] = 0;
-	usb_control_msg( handle, 0xC0, SURFACE_GET_VERSION, 0x00, index, (char*)buf, 12, timeout );
+	libusb_control_transfer( handle, 0xC0, SURFACE_GET_VERSION, 0x00, index, buf, 12, timeout );
 	if (verbose) printf("version string 0x%02x: %s\n", index, buf);
 }
 
 // get device status word
-int surface_get_status( usb_dev_handle* handle ) {
+int surface_get_status( libusb_device_handle* handle ) {
 	uint8_t buf[4];
-	usb_control_msg( handle, 0xC0, SURFACE_GET_STATUS, 0x00, 0x00, (char*)buf, 4, timeout );
+	libusb_control_transfer( handle, 0xC0, SURFACE_GET_STATUS, 0x00, 0x00, buf, 4, timeout );
 	return (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 }
 
 // get sensor status
-void surface_get_sensors( usb_dev_handle* handle, bool verbose = false ) {
+void surface_get_sensors( libusb_device_handle* handle, bool verbose = false ) {
 	surface_sensors sensors;
-	usb_control_msg( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (char*)(&sensors), 8, timeout );
+	libusb_control_transfer( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (unsigned char*)(&sensors), 8, timeout );
 	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
 }
 
 // other commands
-void surface_command( usb_dev_handle* handle, uint16_t cmd, uint16_t index, uint16_t len, bool verbose = false ) {
+void surface_command( libusb_device_handle* handle, uint16_t cmd, uint16_t index, uint16_t len, bool verbose = false ) {
 	uint8_t buf[24];
-	usb_control_msg( handle, 0xC0, cmd, 0x00, index, (char*)buf, len, timeout );
+	libusb_control_transfer( handle, 0xC0, cmd, 0x00, index, buf, len, timeout );
 	if (verbose) {
 		printf("command 0x%02x,0x%02x: ", cmd, index );
 		for (int i = 0; i < len; i++) printf("0x%02x ", buf[i]);
@@ -96,7 +119,7 @@ void surface_command( usb_dev_handle* handle, uint16_t cmd, uint16_t index, uint
 
 // mindless repetition of the microsoft driver's init sequence.
 // quite probably unnecessary, but leave it like this for now.
-void surface_init( usb_dev_handle* handle, bool verbose ) {
+void surface_init( libusb_device_handle* handle, bool verbose ) {
 
 	if (verbose) printf("microsoft surface 2.0 open source driver 0.0.1\n");
 
@@ -161,53 +184,53 @@ void surface_init( usb_dev_handle* handle, bool verbose ) {
 	- accumulate black (with black board)
 */
 
-void surface_peek( usb_dev_handle* handle ) {
+void surface_peek( libusb_device_handle* handle ) {
 	uint8_t buf[48];
-	usb_control_msg( handle, 0xC0, SURFACE_PEEK, 0x00, 0x00, (char*)buf, 48, timeout );
+	libusb_control_transfer( handle, 0xC0, SURFACE_PEEK, 0x00, 0x00, buf, 48, timeout );
 	for (int i = 0; i < 48; i++) printf("0x%02x ", buf[i]);
 	printf("\n");
 }
 
-void surface_calib_accumulate_white( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x04, NULL, 0, timeout ); // AccumulateWhite
+void surface_calib_accumulate_white( libusb_device_handle* handle ) {
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x04, NULL, 0, timeout ); // AccumulateWhite
 	usleep(5500000);
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
 	// ... followed by AdjustWhite
 }
 
-void surface_calib_accumulate_black( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x02, NULL, 0, timeout ); // AccumulateBlack
+void surface_calib_accumulate_black( libusb_device_handle* handle ) {
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x02, NULL, 0, timeout ); // AccumulateBlack
 	usleep(4500000);
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
 }
 
-void surface_calib_setup( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout ); // CaptureMode = RawFullFrame
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x85, NULL, 0, timeout );
+void surface_calib_setup( libusb_device_handle* handle ) {
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x04, NULL, 0, timeout ); // CaptureMode = RawFullFrame
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x01, NULL, 0, timeout );
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x85, NULL, 0, timeout );
 }
 
-void surface_calib_finish( usb_dev_handle* handle ) {
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout ); // CaptureMode = Corrected
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout );
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x80, NULL, 0, timeout );
+void surface_calib_finish( libusb_device_handle* handle ) {
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT1, 0x00, NULL, 0, timeout ); // CaptureMode = Corrected
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout );
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT3, 0x80, NULL, 0, timeout );
 }
 
-void surface_poke( usb_dev_handle* handle, uint8_t offset, uint8_t value ) {
+void surface_poke( libusb_device_handle* handle, uint8_t offset, uint8_t value ) {
 	// writes i2c register, device 0x96 = panel, device 0xae = eeprom
 	uint8_t index = 0x96; // 0xae for permanent write
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW1,  index, NULL, 0, timeout ); usleep(20000);
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(20000);
-	usb_control_msg( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(20000);
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_NVW1,  index, NULL, 0, timeout ); usleep(20000);
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_NVW2, offset, NULL, 0, timeout ); usleep(20000);
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_NVW3,  value, NULL, 0, timeout ); usleep(20000);
 }
 
 // ( ... 0x01, 0x80, 0x00 ) == poll until FPGA is no longer in GPIO mode, used for SPI transfer completion
 // ( ... 0x01, 0x02, 0x02 ) == poll until FPGA is no longer in reset mode, used after firmware upgrade
-int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int mask, int value ) {
+int surface_poll_completion( libusb_device_handle* handle, int tries, int offset, int mask, int value ) {
 	uint8_t buffer[64];
 	for ( int i = 0; i < tries; i++ ) {
 		usleep(5000);
-		int result = usb_control_msg( handle, SURFACE_BUS_STATUS, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+		int result = libusb_control_transfer( handle, SURFACE_BUS_STATUS, 0, 0, buffer, sizeof(buffer), timeout );
 		if (result < 0) { printf("error in BUS_STATUS\n"); return result; }
 		printf("completion polling: offset %d == %02x\n",offset,buffer[offset]);
 		if ((buffer[offset] & mask) == value) return i;
@@ -215,18 +238,18 @@ int surface_poll_completion( usb_dev_handle* handle, int tries, int offset, int 
 	return -1;
 }
 
-int surface_read_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize );
+int surface_read_ddr( libusb_device_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize );
 
 // likely 0x190 pages of fpga bitstream (?), calibration starts at page 0x190
-int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffer[4096] ) {
+int surface_read_spi_flash( libusb_device_handle* handle, uint16_t page, uint8_t buffer[4096] ) {
 
 	uint32_t request[2] = { 0x04ff2000, 4096 };
 	int result, direction = 0; // SPI to DDR
 
-	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER_ENABLE, 0, true, NULL, 0, timeout); // enable read from SPI flash?
+	result = libusb_control_transfer( handle, SURFACE_SPI_TRANSFER_ENABLE, 0, true, NULL, 0, timeout); // enable read from SPI flash?
 	if (result < 0) { printf("error in FPGA_READS\n"); return result; }
-	
-	result = usb_control_msg( handle, SURFACE_SPI_TRANSFER_REQUEST, page, direction, (char*)request, 4, timeout );
+
+	result = libusb_control_transfer( handle, SURFACE_SPI_TRANSFER_REQUEST, page, direction, (unsigned char*)request, 4, timeout );
 	if (result < 0) { printf("error in SPI_TRANSFER\n"); return result; }
 
 	result = surface_poll_completion( handle, 20, 0x01, 0x80, 0x00 );
@@ -237,23 +260,23 @@ int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffe
 
 // query SPI flash size in MB (stores FPGA bitstream and calibration)
 // seems to be broken, always returns timeout (and is also never used in original code)
-int surface_spi_flash_size_mb( usb_dev_handle* handle ) {
+int surface_spi_flash_size_mb( libusb_device_handle* handle ) {
 	uint8_t buffer[64];
 	uint32_t request[1] = { 0 };
-	int result = usb_control_msg( handle, SURFACE_QUERY_SPI, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+	int result = libusb_control_transfer( handle, SURFACE_QUERY_SPI, 0, 0, buffer, sizeof(buffer), timeout );
 	if ((result < 0) || (buffer[0] == 0)) {
-		usb_control_msg( handle, SURFACE_SPI_TRANSFER_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
+		libusb_control_transfer( handle, SURFACE_SPI_TRANSFER_REQUEST, 0, 0, (unsigned char*)request, sizeof(request), timeout );
 		usleep(100000);
-		result = usb_control_msg( handle, SURFACE_QUERY_SPI, 0, 0, (char*)buffer, sizeof(buffer), timeout );
+		result = libusb_control_transfer( handle, SURFACE_QUERY_SPI, 0, 0, buffer, sizeof(buffer), timeout );
 	}
 	return (result < 0 ? result : buffer[0] );
 }
 
 // retrieves 8k of Cypress FX2 firmware, stored in 64k I2C EEPROM
-int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
+int surface_read_usb_flash( libusb_device_handle* handle, uint8_t buffer[8192] ) {
 	int offset = 0;
 	while (offset < 8192) {
-		int result = usb_control_msg( handle, SURFACE_I2C_READ, offset,	0, (char*)(buffer+offset), 64, timeout );
+		int result = libusb_control_transfer( handle, SURFACE_I2C_READ, offset,	0, buffer+offset, 64, timeout );
 		if (result < 64) return result;
 		offset += result;
 	}
@@ -262,10 +285,10 @@ int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
 
 #ifdef DANGER_WILL_ROBINSON
 // write Cypress FX2 USB firmware to I2C EEPROM
-int surface_write_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
+int surface_write_usb_flash( libusb_device_handle* handle, uint8_t buffer[8192] ) {
 	int offset = 0;
 	while (offset < 8192) {
-		int result = usb_control_msg( handle, SURFACE_I2C_WRITE, offset, 0, (char*)(buffer+offset), 32, timeout );
+		int result = libusb_control_transfer( handle, SURFACE_I2C_WRITE, offset, 0, buffer+offset, 32, timeout );
 		if (result < 32) return result;
 		offset += result;
 	}
@@ -273,35 +296,37 @@ int surface_write_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] ) {
 }
 #endif
 
-int surface_read_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
-	
+int surface_read_ddr( libusb_device_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
+
 	uint32_t request[2] = { target_offset, bufsize };
-	uint32_t result, bufpos = 0;
-	
-	usb_control_msg( handle, SURFACE_DDR_READ_ENABLE,  0, true, NULL, 0, timeout );
-	usb_control_msg( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (char*)request, sizeof(request), timeout );
-	
+	uint32_t bufpos = 0;
+	int result = 0;
+
+	libusb_control_transfer( handle, SURFACE_DDR_READ_ENABLE,  0, true, NULL, 0, timeout );
+	libusb_control_transfer( handle, SURFACE_DDR_READ_REQUEST, 0, 0, (unsigned char*)request, sizeof(request), timeout );
+
 	while (bufpos < bufsize) {
-		uint32_t rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
-		result = usb_bulk_read( handle, ENDPOINT_DDR_READ, (char*)(buffer+bufpos), rest, timeout );
-		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
+		int rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
+		libusb_bulk_transfer( handle, ENDPOINT_DDR_READ, buffer+bufpos, rest, &result, timeout );
+		if (result < 0) { printf("error in libusb_bulk_transfer\n"); return result; }
 		bufpos += result;
 	}
-	
+
 	return bufpos;
 }
 
-int surface_write_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
+int surface_write_ddr( libusb_device_handle* handle, uint8_t* buffer, uint32_t bufsize, uint32_t target_offset, uint32_t blocksize ) {
 
 	uint32_t request[2] = { target_offset, blocksize };
-	uint32_t result, bufpos = 0;
+	uint32_t bufpos = 0;
+	int result = 0;
 
 	while (bufpos < bufsize) {
-		uint32_t rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
-		result = usb_bulk_write( handle, ENDPOINT_DDR_WRITE, (char*)request, sizeof(request), timeout );
-		if (result < 0) { printf("error in usb_bulk_write\n"); return result; }
-		result = usb_bulk_write( handle, ENDPOINT_DDR_WRITE, (char*)(buffer+bufpos), rest, timeout );
-		if (result < 0) { printf("error in usb_bulk_write\n"); return result; }
+		int rest = bufsize-bufpos; if (rest > blocksize) rest = blocksize;
+		libusb_bulk_transfer( handle, ENDPOINT_DDR_WRITE, (unsigned char*)request, sizeof(request), &result, timeout );
+		if (result < 0) { printf("error in libusb_bulk_transfer\n"); return result; }
+		libusb_bulk_transfer( handle, ENDPOINT_DDR_WRITE, buffer+bufpos, rest, &result, timeout );
+		if (result < 0) { printf("error in libusb_bulk_transfer\n"); return result; }
 		bufpos += result;
 		request[0] += result;
 	}
@@ -309,11 +334,11 @@ int surface_write_ddr( usb_dev_handle* handle, uint8_t* buffer, uint32_t bufsize
 	return bufpos;
 }
 
-int surface_write_calib( usb_dev_handle* handle, surface_calib* calib ) {
+int surface_write_calib( libusb_device_handle* handle, surface_calib* calib ) {
 	return surface_write_ddr( handle, (uint8_t*)calib, sizeof(surface_calib), 0x05000000, 2048 );
 }
 
-int surface_read_calib( usb_dev_handle* handle, surface_calib* calib ) {
+int surface_read_calib( libusb_device_handle* handle, surface_calib* calib ) {
 	return surface_read_ddr( handle, (uint8_t*)calib, sizeof(surface_calib), 0x05000000, 2048 );
 }
 
@@ -330,18 +355,18 @@ int surface_read_calib( usb_dev_handle* handle, surface_calib* calib ) {
 // - if avg. < 155: value++
 // - else if avg. < 210 && % of bright pixels < 4.1: break
 // - else value--
-void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value ) {
+void surface_set_vsvideo( libusb_device_handle* handle, uint8_t value ) {
 	for (int i = 0; i < 4; i++)
 		surface_poke( handle, 0x1c+i, value );
 }
 
 // value was: 0x20, 0xff, 0x80, 0xff
-void surface_set_irlevel( usb_dev_handle* handle, uint8_t value ) {
+void surface_set_irlevel( libusb_device_handle* handle, uint8_t value ) {
 	for (int i = 0; i < 8; i++)
 		surface_poke( handle, 0x08+(2*i), value );
 }
 
-void surface_set_preprocessor( usb_dev_handle* handle, uint8_t value )
+void surface_set_preprocessor( libusb_device_handle* handle, uint8_t value )
 {
 	uint8_t setting_07[2] = { 0x01, 0x00 };
 	uint8_t setting_17[2] = { 0x85, 0x80 };
@@ -352,13 +377,13 @@ void surface_set_preprocessor( usb_dev_handle* handle, uint8_t value )
 	surface_poke(handle, 0x17, setting_17[value]);
 }
 
-void surface_calib_start( usb_dev_handle* handle ) {
+void surface_calib_start( libusb_device_handle* handle ) {
 	surface_calib_setup( handle );
 	surface_poke( handle, 0x17, 0x00 ); // WledPwmClkHz = 0
 	surface_peek( handle );
 }
 
-void surface_calib_end( usb_dev_handle* handle ) {
+void surface_calib_end( libusb_device_handle* handle ) {
 	surface_calib_finish( handle );
 	surface_poke( handle, 0x17, 0x04 ); // WledPwmClkHz = 4
 	surface_peek( handle );
@@ -368,12 +393,13 @@ void surface_calib_end( usb_dev_handle* handle ) {
 
 /************************** IMAGE FUNCTIONS *************************/
 
-int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufsize ) {
+int surface_get_image( libusb_device_handle* handle, uint8_t* image, unsigned int bufsize ) {
 
 	uint8_t buffer[512];
-	unsigned int result, bufpos = 0;
+	uint32_t bufpos = 0;
+	int result = 0;
 
-	result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)buffer, sizeof(buffer), timeout );
+	libusb_bulk_transfer( handle, ENDPOINT_VIDEO, buffer, sizeof(buffer), &result, timeout );
 	if (result <  sizeof(surface_image)) { printf("transfer size mismatch\n"); return -1; }
 
 	surface_image* header = (surface_image*)buffer;
@@ -390,8 +416,8 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 
 	while (bufpos < bufsize) {
 		int rest = bufsize-bufpos; if (rest > VIDEO_PACKET_SIZE) rest = VIDEO_PACKET_SIZE;
-		result = usb_bulk_read( handle, ENDPOINT_VIDEO, (char*)(image+bufpos), rest, timeout );
-		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
+		libusb_bulk_transfer( handle, ENDPOINT_VIDEO, image+bufpos, rest, &result, timeout );
+		if (result < 0) { printf("error in libusb_bulk_transfer\n"); return result; }
 		bufpos += result;
 	}
 
@@ -401,7 +427,7 @@ int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufs
 
 /************************** BLOB FUNCTIONS **************************/
 
-int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
+int surface_get_blobs( libusb_device_handle* handle, surface_blob* outblob ) {
 
 	uint8_t buffer[512];
 	//uint32_t packet_id;
@@ -415,8 +441,9 @@ int surface_get_blobs( usb_dev_handle* handle, surface_blob* outblob ) {
 
 	do {
 
-		result = usb_bulk_read( handle, ENDPOINT_BLOBS, (char*)(buffer), sizeof(buffer), timeout ) - sizeof(surface_header);
-		if (result < 0) { printf("error in usb_bulk_read\n"); return result; }
+		libusb_bulk_transfer( handle, ENDPOINT_BLOBS, buffer, sizeof(buffer), &result, timeout );
+		result-= sizeof(surface_header);
+		if (result < 0) { printf("error in libusb_bulk_transfer\n"); return result; }
 		if (result % sizeof(surface_blob) != 0) { printf("transfer size mismatch\n"); return -1; }
 		//printf("id: %x count: %d\n",header->packet_id,header->count);
 

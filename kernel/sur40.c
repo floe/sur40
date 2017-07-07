@@ -170,12 +170,15 @@ int sur40_v4l2_gain       = SUR40_GAIN_DEF;       // gain
 int sur40_v4l2_backlight  = 1;			  // preprocessor
 
 // module parameters
-static bool sur40_xinput = 0;
-module_param(sur40_xinput, bool, 0644);
-MODULE_PARM_DESC(sur40_xinput, "enable xinput device");
-static bool sur40_camera = 0;
-module_param(sur40_camera, bool, 0644);
-MODULE_PARM_DESC(sur40_camera, "enable v4l2 camera");
+static uint irlevel = SUR40_BRIGHTNESS_DEF;
+module_param(irlevel, uint, 0644);
+MODULE_PARM_DESC(irlevel, "set default irlevel");
+static uint vsvideo = SUR40_VSVIDEO_DEF;
+module_param(vsvideo, uint, 0644);
+MODULE_PARM_DESC(vsvideo, "set default vsvideo");
+static bool videodev = 0;
+module_param(videodev, bool, 0644);
+MODULE_PARM_DESC(videodev, "use /dev/video*");
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -378,8 +381,8 @@ static void sur40_open(struct input_polled_dev *polldev)
 	sur40_init(sur40);
 
 	// set default values
-	sur40_set_irlevel(sur40, SUR40_BRIGHTNESS_DEF);
-	sur40_set_vsvideo(sur40, SUR40_VSVIDEO_DEF);
+	sur40_set_irlevel(sur40, irlevel);
+	sur40_set_vsvideo(sur40, vsvideo);
 	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
@@ -731,7 +734,7 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->vdev.queue = &sur40->queue;
 	video_set_drvdata(&sur40->vdev, sur40);
 
-	error = video_register_device(&sur40->vdev, sur40_camera?VFL_TYPE_GRABBER:VFL_TYPE_TOUCH, -1);
+	error = video_register_device(&sur40->vdev, videodev?VFL_TYPE_GRABBER:VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video subdevice.");
@@ -894,7 +897,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 {
 	if (i->index != 0)
 		return -EINVAL;
-	i->type = sur40_camera?V4L2_INPUT_TYPE_CAMERA:V4L2_INPUT_TYPE_TOUCH;
+	i->type = videodev?V4L2_INPUT_TYPE_CAMERA:V4L2_INPUT_TYPE_TOUCH;
 	i->std = V4L2_STD_UNKNOWN;
 	strlcpy(i->name, "In-Cell Sensor", sizeof(i->name));
 	i->capabilities = 0;
@@ -916,12 +919,15 @@ static int sur40_vidioc_try_fmt(struct file *file, void *priv,
 			    struct v4l2_format *f)
 {
 	switch (f->fmt.pix.pixelformat) {
+	case  V4L2_TCH_FMT_TU08:
+		f->fmt.pix = sur40_pix_format[0];
+		break;
 	case V4L2_PIX_FMT_GREY:
 		f->fmt.pix = sur40_pix_format[1];
 		break;
-
 	default:
-		f->fmt.pix = sur40_pix_format[0];
+		if (videodev) f->fmt.pix = sur40_pix_format[1];
+		else f->fmt.pix = sur40_pix_format[0];
 		break;
 	}
 
@@ -934,12 +940,15 @@ static int sur40_vidioc_s_fmt(struct file *file, void *priv,
 	struct sur40_state *sur40 = video_drvdata(file);
 
 	switch (f->fmt.pix.pixelformat) {
+	case V4L2_TCH_FMT_TU08:
+		sur40->pix_fmt = sur40_pix_format[0];
+		break;
 	case V4L2_PIX_FMT_GREY:
 		sur40->pix_fmt = sur40_pix_format[1];
 		break;
-
 	default:
-		sur40->pix_fmt = sur40_pix_format[0];
+		if (videodev) sur40->pix_fmt = sur40_pix_format[1];
+		else sur40->pix_fmt = sur40_pix_format[0];
 		break;
 	}
 

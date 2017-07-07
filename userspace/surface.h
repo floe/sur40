@@ -12,9 +12,10 @@
 #ifndef _SURFACE_H_
 #define _SURFACE_H_
 
+#include <stdio.h>
+#include <string.h>
 #include <stdint.h>
-#include <usb.h>
-
+#include <libusb-1.0/libusb.h>
 
 #define ID_MICROSOFT 0x045e
 #define ID_SURFACE   0x0775
@@ -92,8 +93,11 @@ struct surface_sensors {
 
 
 // internal calibration for one row
+#ifdef WIN32
+struct surface_row_calib {
+#else
 struct __attribute__((__packed__)) surface_row_calib {
-
+#endif
 	uint16_t calib[VIDEO_RES_X]; // MSB = black level, LSB = white level?
 
 	// fields below are only valid in first row, 0xFF otherwise
@@ -122,37 +126,37 @@ struct surface_calib {
 	surface_row_calib row[VIDEO_RES_Y];
 };
 
-
 // helper to find a device by vendor and product
-usb_dev_handle* usb_get_device_handle( int vendor, int product );
+libusb_device_handle* sur40_get_device_handle();
+void sur40_close_device(libusb_device_handle* handle);
 
 // get device status word
-int surface_get_status( usb_dev_handle* handle );
+int surface_get_status( libusb_device_handle* handle );
 
 // get sensor status
-void surface_get_sensors( usb_dev_handle* handle );
+void surface_get_sensors( libusb_device_handle* handle );
 
 // initialization sequence
-void surface_init( usb_dev_handle* handle, bool verbose = false );
+void surface_init( libusb_device_handle* handle, bool verbose = false );
 
 // retrieve raw data from surface
-int surface_get_image( usb_dev_handle* handle, uint8_t* image, unsigned int bufsize = VIDEO_BUFFER_SIZE );
-int surface_get_blobs( usb_dev_handle* handle, surface_blob* blob );
+int surface_get_image( libusb_device_handle* handle, uint8_t* image, unsigned int bufsize = VIDEO_BUFFER_SIZE );
+int surface_get_blobs( libusb_device_handle* handle, surface_blob* blob );
 
 // calibration: start/finish
-void surface_calib_start( usb_dev_handle* handle );
-void surface_calib_end( usb_dev_handle* handle );
+void surface_calib_start( libusb_device_handle* handle );
+void surface_calib_end( libusb_device_handle* handle );
 
-void surface_set_vsvideo( usb_dev_handle* handle, uint8_t value = 0xA8 );
-void surface_set_irlevel( usb_dev_handle* handle, uint8_t value = 0xFF );
-void surface_set_preprocessor( usb_dev_handle* handle, uint8_t value = 0x01);
-void surface_peek( usb_dev_handle* handle );
+void surface_set_vsvideo( libusb_device_handle* handle, uint8_t value = 0xA8 );
+void surface_set_irlevel( libusb_device_handle* handle, uint8_t value = 0xFF );
+void surface_set_preprocessor( libusb_device_handle* handle, uint8_t value = 0x01);
+void surface_peek( libusb_device_handle* handle );
 
-int surface_read_calib( usb_dev_handle* handle, surface_calib* calib );
-int surface_write_calib( usb_dev_handle* handle, surface_calib* calib );
+int surface_read_calib( libusb_device_handle* handle, surface_calib* calib );
+int surface_write_calib( libusb_device_handle* handle, surface_calib* calib );
 
-int surface_read_usb_flash( usb_dev_handle* handle, uint8_t buffer[8192] );
-int surface_read_spi_flash( usb_dev_handle* handle, uint16_t page, uint8_t buffer[4096] );
+int surface_read_usb_flash( libusb_device_handle* handle, uint8_t buffer[8192] );
+int surface_read_spi_flash( libusb_device_handle* handle, uint16_t page, uint8_t buffer[4096] );
 
 
 #endif // _SURFACE_H_

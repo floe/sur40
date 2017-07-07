@@ -21,7 +21,8 @@ int main( int argc, char* argv[] ) {
 	surface_blob blob[256];
 	int result,frame = 0;
 
-	usb_dev_handle* s40 = usb_get_device_handle( ID_MICROSOFT, ID_SURFACE );
+	libusb_device_handle* s40 = sur40_get_device_handle();
+	if (s40==NULL) return 0;
 
 	surface_init( s40 );
 
@@ -38,5 +39,7 @@ int main( int argc, char* argv[] ) {
 	FILE* foo = fopen("surface.raw","w+");
 	fwrite(buffer,VIDEO_BUFFER_SIZE,1,foo);
 	fclose(foo);
+
+	sur40_close_device( s40 );
 }
 
