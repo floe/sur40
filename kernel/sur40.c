@@ -919,12 +919,15 @@ static int sur40_vidioc_try_fmt(struct file *file, void *priv,
 			    struct v4l2_format *f)
 {
 	switch (f->fmt.pix.pixelformat) {
+	case  V4L2_TCH_FMT_TU08:
+		f->fmt.pix = sur40_pix_format[0];
+		break;
 	case V4L2_PIX_FMT_GREY:
 		f->fmt.pix = sur40_pix_format[1];
 		break;
-
 	default:
-		f->fmt.pix = sur40_pix_format[0];
+		if (videodev) f->fmt.pix = sur40_pix_format[1];
+		else f->fmt.pix = sur40_pix_format[0];
 		break;
 	}
 
@@ -937,12 +940,15 @@ static int sur40_vidioc_s_fmt(struct file *file, void *priv,
 	struct sur40_state *sur40 = video_drvdata(file);
 
 	switch (f->fmt.pix.pixelformat) {
+	case V4L2_TCH_FMT_TU08:
+		sur40->pix_fmt = sur40_pix_format[0];
+		break;
 	case V4L2_PIX_FMT_GREY:
 		sur40->pix_fmt = sur40_pix_format[1];
 		break;
-
 	default:
-		sur40->pix_fmt = sur40_pix_format[0];
+		if (videodev) sur40->pix_fmt = sur40_pix_format[1];
+		else sur40->pix_fmt = sur40_pix_format[0];
 		break;
 	}
 
