@@ -14,7 +14,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 #include <libusb-1.0/libusb.h>
 
 #define ID_MICROSOFT 0x045e
@@ -35,8 +34,7 @@ struct surface_header {
 	uint32_t packet_id;
 
 	uint32_t timestamp; // milliseconds (increases by 16 or 17 each frame)
-	uint32_t unknown;   // "epoch?" always 02/03 00 00 00 
-
+	uint32_t unknown;   // "epoch?" always 02/03 00 00 00
 };
 
 
@@ -44,7 +42,7 @@ struct surface_blob {
 
 	uint16_t blob_id;
 
-	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?) 
+	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?)
 	uint8_t type;       // 0x01 blob, 0x02 finger, 0x04 tag (bitmask)
 
 	uint16_t bb_pos_x;  // upper left corner of bounding box
@@ -60,7 +58,7 @@ struct surface_blob {
 	uint16_t ctr_y;
 
 	uint16_t axis_x;    // somehow related to major/minor axis, mostly:
-	uint16_t axis_y;    // axis_x == bb_size_y && axis_y == bb_size_x 
+	uint16_t axis_y;    // axis_x == bb_size_y && axis_y == bb_size_x
 
 	float    angle;     // orientation in radians relative to x axis
 	uint32_t area;      // size in pixels/pressure (?)
@@ -79,7 +77,7 @@ struct surface_image {
 	uint32_t packet_id;
 	uint32_t size;      // always 0x0007e900 = 960x540
 	uint32_t timestamp; // milliseconds (increases by 16 or 17 each frame)
-	uint32_t unknown;   // "epoch?" always 02/03 00 00 00 
+	uint32_t unknown;   // "epoch?" always 02/03 00 00 00
 };
 
 

@@ -11,8 +11,6 @@
 
 #include "surface.h"
 
-#include <stdio.h>
-
 /******************************* MAIN *******************************/
 
 int main( int argc, char* argv[] ) {
