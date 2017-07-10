@@ -404,7 +404,7 @@ static void sur40_close(struct input_polled_dev *polldev)
  */
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
-	int wide, major, minor;
+	int slotnum, wide, major, minor;
 
 	int bb_size_x = le16_to_cpu(blob->bb_size_x);
 	int bb_size_y = le16_to_cpu(blob->bb_size_y);
@@ -415,9 +415,12 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	int ctr_x = le16_to_cpu(blob->ctr_x);
 	int ctr_y = le16_to_cpu(blob->ctr_y);
 
-	int slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
-	if (slotnum < 0 || slotnum >= MAX_CONTACTS) return;
-	if (blob->type != SUR40_TOUCH) return;
+	if (blob->type != SUR40_TOUCH)
+		return;
+
+	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
+	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
+		return;
 
 	input_mt_slot(input, slotnum);
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
