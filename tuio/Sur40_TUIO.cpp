@@ -81,6 +81,7 @@ void Sur40_TUIO::run() {
 						if (tcur==NULL) {
 							tcur = tuioServer->addTuioCursor(blob[i].pos_x/width,blob[i].pos_y/height);
 							tcur->setSessionID(blob[i].blob_id);
+							//tcur->addPositionFilter(5.0f, 0.25f);
 						} else tuioServer->updateTuioCursor(tcur,blob[i].pos_x/width,blob[i].pos_y/height);
 					}
 					break;
