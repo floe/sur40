@@ -158,7 +158,7 @@ struct sur40_image_header {
 #define SUR40_GAIN_MIN 0x00
 #define SUR40_GAIN_DEF 0x08
 
-#define SUR40_VSVIDEO_DEF 0xA8
+#define SUR40_VSVIDEO_DEF 0x86
 
 #define SUR40_BACKLIGHT_MAX 0x01
 #define SUR40_BACKLIGHT_MIN 0x00

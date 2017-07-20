@@ -141,7 +141,7 @@ int surface_get_blobs( libusb_device_handle* handle, surface_blob* blob );
 void surface_calib_start( libusb_device_handle* handle );
 void surface_calib_end( libusb_device_handle* handle );
 
-void surface_set_vsvideo( libusb_device_handle* handle, uint8_t value = 0xA8 );
+void surface_set_vsvideo( libusb_device_handle* handle, uint8_t value = 0x86 );
 void surface_set_irlevel( libusb_device_handle* handle, uint8_t value = 0xFF );
 void surface_set_preprocessor( libusb_device_handle* handle, uint8_t value = 0x01);
 void surface_peek( libusb_device_handle* handle );

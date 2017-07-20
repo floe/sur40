@@ -185,6 +185,10 @@ int main(int argc, char* argv[]) {
 	if (s40==NULL) return 0;
 	surface_init( s40 );
 
+        surface_set_vsvideo(s40);
+        surface_set_irlevel(s40);
+        surface_set_preprocessor(s40);
+
  	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y);
 	glutInit(&argc,argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH );
