@@ -1,12 +1,8 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #ifndef _SURFACE_H_
@@ -132,7 +128,7 @@ void sur40_close_device(libusb_device_handle* handle);
 int surface_get_status( libusb_device_handle* handle );
 
 // get sensor status
-void surface_get_sensors( libusb_device_handle* handle );
+void surface_get_sensors( libusb_device_handle* handle, surface_sensors *sensors, bool verbose = false );
 
 // initialization sequence
 void surface_init( libusb_device_handle* handle, bool verbose = false );

@@ -1,12 +1,8 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #include "surface.h"
@@ -30,7 +26,10 @@ int main( int argc, char* argv[] ) {
 		printf("%d blobs\n",result);
 		for (int i = 0; i < result; i++)
 			printf("    x: %d y: %d size: %d\n",blob[i].pos_x,blob[i].pos_y,blob[i].area);
-		if ((frame++ % 60) == 0) printf("status 0x%08x\n",surface_get_status(s40));
+		if ((frame++ % 60) == 0) {
+			printf("status 0x%08x\n",surface_get_status(s40));
+			surface_get_sensors(s40, NULL);
+		}
 	}
 
 	surface_get_image( s40, buffer );

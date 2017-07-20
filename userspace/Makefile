@@ -1,7 +1,7 @@
 #CFLAGS=-g -Wall
 CFLAGS=-O3 -w
 
-%.o: %.cpp surface.h
+%.o: %.cpp
 	@echo [CXX] $@
 	@ $(CXX) $(CXXFLAGS) -o $@ -c $<
 

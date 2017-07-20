@@ -1,12 +1,8 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #include "surface.h"
@@ -100,10 +96,16 @@ int surface_get_status( libusb_device_handle* handle ) {
 }
 
 // get sensor status
-void surface_get_sensors( libusb_device_handle* handle, bool verbose = false ) {
-	surface_sensors sensors;
-	libusb_control_transfer( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (unsigned char*)(&sensors), 8, timeout );
-	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
+void surface_get_sensors( libusb_device_handle* handle, surface_sensors *sensors, bool verbose) {
+	
+	if (sensors==NULL) {
+		surface_sensors s;
+		sensors = &s;
+		verbose = true;
+	}
+
+	libusb_control_transfer( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (unsigned char*)sensors, 8, timeout );
+	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors->temp,sensors->acc_x,sensors->acc_y,sensors->acc_z);
 }
 
 // other commands
@@ -121,7 +123,7 @@ void surface_command( libusb_device_handle* handle, uint16_t cmd, uint16_t index
 // quite probably unnecessary, but leave it like this for now.
 void surface_init( libusb_device_handle* handle, bool verbose ) {
 
-	if (verbose) printf("microsoft surface 2.0 open source driver 0.0.1\n");
+	if (verbose) printf("microsoft surface 2.0 open source driver 0.9\n");
 
  	surface_get_version(handle, 0x00);
 	surface_get_version(handle, 0x01);
