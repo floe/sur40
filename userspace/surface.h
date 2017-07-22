@@ -12,7 +12,7 @@
 #include <string.h>
 #include <libusb-1.0/libusb.h>
 
-#define ID_MICROSOFT 0x045e
+#define ID_MICROSOFT 0x045E
 #define ID_SURFACE   0x0775
 
 #define VIDEO_RES_X 960

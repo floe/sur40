@@ -51,12 +51,13 @@ libusb_device_handle* sur40_get_device_handle() {
 	libusb_device_handle* handle = libusb_open_device_with_vid_pid(NULL,ID_MICROSOFT,ID_SURFACE);
 	if (!handle) return NULL;
 
+/*
 	if (libusb_kernel_driver_active(handle, 0)) {
     		result = libusb_detach_kernel_driver(handle, 0);
     		if (result == 0) kernelDriverDetached = true;
 		else return NULL;
 	}
-
+*/
 	if (libusb_claim_interface( handle, 0 ) < 0) return NULL;
 	return handle;
 }
@@ -65,7 +66,7 @@ void sur40_close_device(libusb_device_handle* handle) {
 
 	libusb_release_interface(handle, 0);
 
-	if (kernelDriverDetached) libusb_attach_kernel_driver(handle, 0);
+//	if (kernelDriverDetached) libusb_attach_kernel_driver(handle, 0);
 
 	libusb_exit(NULL);
 }
