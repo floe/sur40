@@ -1,12 +1,8 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #include "surface.h"
@@ -15,17 +11,17 @@
 #else
 #include <windows.h>
 
-void usleep(__int64 usec) 
-{ 
-    HANDLE timer; 
-    LARGE_INTEGER ft; 
+void usleep(__int64 usec)
+{
+    HANDLE timer;
+    LARGE_INTEGER ft;
 
     ft.QuadPart = -(10*usec); // Convert to 100 nanosecond interval, negative value indicates relative time
 
-    timer = CreateWaitableTimer(NULL, TRUE, NULL); 
-    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0); 
-    WaitForSingleObject(timer, INFINITE); 
-    CloseHandle(timer); 
+    timer = CreateWaitableTimer(NULL, TRUE, NULL);
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    WaitForSingleObject(timer, INFINITE);
+    CloseHandle(timer);
 }
 #endif
 
@@ -55,12 +51,13 @@ libusb_device_handle* sur40_get_device_handle() {
 	libusb_device_handle* handle = libusb_open_device_with_vid_pid(NULL,ID_MICROSOFT,ID_SURFACE);
 	if (!handle) return NULL;
 
+/*
 	if (libusb_kernel_driver_active(handle, 0)) {
     		result = libusb_detach_kernel_driver(handle, 0);
     		if (result == 0) kernelDriverDetached = true;
 		else return NULL;
 	}
-
+*/
 	if (libusb_claim_interface( handle, 0 ) < 0) return NULL;
 	return handle;
 }
@@ -69,7 +66,7 @@ void sur40_close_device(libusb_device_handle* handle) {
 
 	libusb_release_interface(handle, 0);
 
-	if (kernelDriverDetached) libusb_attach_kernel_driver(handle, 0);
+//	if (kernelDriverDetached) libusb_attach_kernel_driver(handle, 0);
 
 	libusb_exit(NULL);
 }
@@ -100,10 +97,16 @@ int surface_get_status( libusb_device_handle* handle ) {
 }
 
 // get sensor status
-void surface_get_sensors( libusb_device_handle* handle, bool verbose = false ) {
-	surface_sensors sensors;
-	libusb_control_transfer( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (unsigned char*)(&sensors), 8, timeout );
-	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors.temp,sensors.acc_x,sensors.acc_y,sensors.acc_z);
+void surface_get_sensors( libusb_device_handle* handle, surface_sensors *sensors, bool verbose) {
+	
+	if (sensors==NULL) {
+		surface_sensors s;
+		sensors = &s;
+		verbose = true;
+	}
+
+	libusb_control_transfer( handle, 0xC0, SURFACE_GET_SENSORS, 0x00, 0x00, (unsigned char*)sensors, 8, timeout );
+	if (verbose) printf("temp: %d x: %d y: %d z: %d\n",sensors->temp,sensors->acc_x,sensors->acc_y,sensors->acc_z);
 }
 
 // other commands
@@ -121,7 +124,7 @@ void surface_command( libusb_device_handle* handle, uint16_t cmd, uint16_t index
 // quite probably unnecessary, but leave it like this for now.
 void surface_init( libusb_device_handle* handle, bool verbose ) {
 
-	if (verbose) printf("microsoft surface 2.0 open source driver 0.0.1\n");
+	if (verbose) printf("microsoft surface 2.0 open source driver 0.9\n");
 
  	surface_get_version(handle, 0x00);
 	surface_get_version(handle, 0x01);

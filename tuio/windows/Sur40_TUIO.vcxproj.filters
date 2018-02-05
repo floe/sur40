@@ -213,10 +213,10 @@
     <ClCompile Include="..\oscpack\osc\OscTypes.cpp">
       <Filter>Source Files\oscpack\osc</Filter>
     </ClCompile>
-    <ClCompile Include="..\Sur40_TUIO.cpp">
+    <ClCompile Include="..\..\userspace\surface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\userspace\surface.cpp">
+    <ClCompile Include="..\Sur40_TUIO.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -158,7 +158,7 @@ struct sur40_image_header {
 #define SUR40_GAIN_MIN 0x00
 #define SUR40_GAIN_DEF 0x08
 
-#define SUR40_VSVIDEO_DEF 0xA8
+#define SUR40_VSVIDEO_DEF 0x86
 
 #define SUR40_BACKLIGHT_MAX 0x01
 #define SUR40_BACKLIGHT_MIN 0x00
@@ -404,23 +404,28 @@ static void sur40_close(struct input_polled_dev *polldev)
  */
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
-	int wide, major, minor;
+	int slotnum, wide, major, minor;
+	int bb_size_x, bb_size_y, pos_x, pos_y, ctr_x, ctr_y;
 
-	int bb_size_x = le16_to_cpu(blob->bb_size_x);
-	int bb_size_y = le16_to_cpu(blob->bb_size_y);
+	if (blob->type != SUR40_TOUCH)
+		return;
 
-	int pos_x = le16_to_cpu(blob->pos_x);
-	int pos_y = le16_to_cpu(blob->pos_y);
-
-	int ctr_x = le16_to_cpu(blob->ctr_x);
-	int ctr_y = le16_to_cpu(blob->ctr_y);
-
-	int slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
-	if (slotnum < 0 || slotnum >= MAX_CONTACTS) return;
-	if (blob->type != SUR40_TOUCH) return;
+	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
+	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
+		return;
 
 	input_mt_slot(input, slotnum);
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
+
+	bb_size_x = le16_to_cpu(blob->bb_size_x);
+	bb_size_y = le16_to_cpu(blob->bb_size_y);
+
+	pos_x = le16_to_cpu(blob->pos_x);
+	pos_y = le16_to_cpu(blob->pos_y);
+
+	ctr_x = le16_to_cpu(blob->ctr_x);
+	ctr_y = le16_to_cpu(blob->ctr_y);
+
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
 	minor = min(bb_size_x, bb_size_y);

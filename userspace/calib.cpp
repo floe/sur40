@@ -1,29 +1,11 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #include "surface.h"
-
-#include <stdlib.h> // random() etc.
-#include <string.h> // strlen() etc.
-#include <stdio.h>  // printf() etc.
-#include <time.h>   // time()
-#include <math.h>   // fabsf()
-
-#include <unistd.h> // fcntl()
-#include <fcntl.h>
-
-#include <sys/socket.h> // inet_addr()
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
 #include <GL/glut.h>
 
 void deinterlace( uint8_t* input, uint8_t* output ) {

@@ -53,10 +53,10 @@ void Sur40_TUIO::run() {
 
         while (running) {
 
-                result = surface_get_blobs( sur40, blob );
-		count = tuioServer->getTuioObjectCount() + tuioServer->getTuioCursorCount();// + tuioServer->getTuioBlobCount();
+            result = surface_get_blobs( sur40, blob );
+			count = tuioServer->getTuioObjectCount() + tuioServer->getTuioCursorCount();// + tuioServer->getTuioBlobCount();
 
-                if ((result <= 0) && (count<=0)) continue;
+            if ((result <= 0) && (count<=0)) continue;
 
 		TuioTime frameTime = TuioTime::getSystemTime();
 		tuioServer->initFrame(frameTime);
@@ -81,6 +81,7 @@ void Sur40_TUIO::run() {
 						if (tcur==NULL) {
 							tcur = tuioServer->addTuioCursor(blob[i].pos_x/width,blob[i].pos_y/height);
 							tcur->setSessionID(blob[i].blob_id);
+							//tcur->addPositionFilter(5.0f, 0.25f);
 						} else tuioServer->updateTuioCursor(tcur,blob[i].pos_x/width,blob[i].pos_y/height);
 					}
 					break;

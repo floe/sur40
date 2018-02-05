@@ -1,31 +1,12 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #include "surface.h"
-
-#include <stdlib.h> // random() etc.
-#include <string.h> // strlen() etc.
-#include <stdio.h>  // printf() etc.
-#include <time.h>   // time()
-#include <math.h>   // fabsf()
-
-#include <unistd.h> // fcntl()
-#include <fcntl.h>
-
-#include <sys/socket.h> // inet_addr()
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
 #include <GL/glut.h>
-
 
 libusb_device_handle* s40;
 GLuint texture;
@@ -203,6 +184,10 @@ int main(int argc, char* argv[]) {
 	s40 = sur40_get_device_handle();
 	if (s40==NULL) return 0;
 	surface_init( s40 );
+
+        surface_set_vsvideo(s40);
+        surface_set_irlevel(s40);
+        surface_set_preprocessor(s40);
 
  	glutInitWindowSize(VIDEO_RES_X,VIDEO_RES_Y);
 	glutInit(&argc,argv);

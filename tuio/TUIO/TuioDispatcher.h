@@ -68,7 +68,7 @@ namespace TUIO {
 		 * Removes all TuioListener from the list of registered TUIO event listeners
 		 */
 		void removeAllTuioListeners();
-
+		
 		/**
 		 * Returns a List of all currently active TuioObjects
 		 *
@@ -76,6 +76,11 @@ namespace TUIO {
 		 */
 		std::list<TuioObject*> getTuioObjects();
 
+		/**
+		* Returns the number of all currently active TuioObjects
+		*
+		* @return  the of all currently active TuioObjects
+		*/
 		int getTuioObjectCount();
 
 		/**
@@ -84,7 +89,7 @@ namespace TUIO {
 		 * @return  a List with a copy of all currently active TuioObjects
 		 */
 		std::list<TuioObject> copyTuioObjects();
-
+		
 		/**
 		 * Returns a List of all currently active TuioCursors
 		 *
@@ -93,14 +98,19 @@ namespace TUIO {
 		std::list<TuioCursor*> getTuioCursors();
 
 		/**
+		* Returns the number of all currently active TuioCursors
+		*
+		* @return  the of all currently active TuioCursors
+		*/
+		int getTuioCursorCount();
+
+		/**
 		 * Returns a List with a copy of currently active TuioCursors
 		 *
 		 * @return  a List with a copy of all currently active TuioCursors
 		 */
 		std::list<TuioCursor> copyTuioCursors();
-
-		int getTuioCursorCount();
-
+		
 		/**
 		 * Returns a List of all currently active TuioBlobs
 		 *
@@ -109,14 +119,19 @@ namespace TUIO {
 		std::list<TuioBlob*> getTuioBlobs();
 
 		/**
+		* Returns the number of all currently active TuioBlobs
+		*
+		* @return  the of all currently active TuioBlobs
+		*/
+		int getTuioBlobCount();
+
+		/**
 		 * Returns a List with a copy of currently active TuioBlobs
 		 *
 		 * @return  a List with a copy of all currently active TuioBlobs
 		 */
 		std::list<TuioBlob> copyTuioBlobs();
-
-		int getTuioBlobCount();
-
+		
 		/**
 		 * Returns the TuioObject corresponding to the provided Session ID
 		 * or NULL if the Session ID does not refer to an active TuioObject
