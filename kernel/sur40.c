@@ -38,6 +38,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-sg.h>
 
@@ -81,7 +82,10 @@ struct sur40_blob {
 
 	__le32 area;       /* size in pixels/pressure (?) */
 
-	u8 padding[32];
+	u8 padding[24];
+
+	__le32 tag_id;     /* valid when type == 0x04 (SUR40_TAG) */
+	__le32 unknown;
 
 } __packed;
 
@@ -146,6 +150,7 @@ struct sur40_image_header {
 #define SUR40_TOUCH	0x02
 #define SUR40_TAG	0x04
 
+/* video controls */
 #define SUR40_BRIGHTNESS_MAX 0xFF
 #define SUR40_BRIGHTNESS_MIN 0x00
 #define SUR40_BRIGHTNESS_DEF 0xFF
@@ -158,24 +163,20 @@ struct sur40_image_header {
 #define SUR40_GAIN_MIN 0x00
 #define SUR40_GAIN_DEF 0x08
 
-#define SUR40_VSVIDEO_DEF 0xA8
-
 #define SUR40_BACKLIGHT_MAX 0x01
 #define SUR40_BACKLIGHT_MIN 0x00
 #define SUR40_BACKLIGHT_DEF 0x01
 
-int sur40_v4l2_brightness = SUR40_BRIGHTNESS_DEF; // infrared
-int sur40_v4l2_contrast   = SUR40_CONTRAST_DEF;   // blacklevel
-int sur40_v4l2_gain       = SUR40_GAIN_DEF;       // gain
-int sur40_v4l2_backlight  = 1;			  // preprocessor
-
-// module parameters
-static bool sur40_xinput = 0;
-module_param(sur40_xinput, bool, 0644);
-MODULE_PARM_DESC(sur40_xinput, "enable xinput device");
-static bool sur40_camera = 0;
-module_param(sur40_camera, bool, 0644);
-MODULE_PARM_DESC(sur40_camera, "enable v4l2 camera");
+/* module parameters */
+static uint brightness = SUR40_BRIGHTNESS_DEF;
+module_param(brightness, uint, 0644);
+MODULE_PARM_DESC(brightness, "set default brightness");
+static uint contrast = SUR40_CONTRAST_DEF;
+module_param(contrast, uint, 0644);
+MODULE_PARM_DESC(contrast, "set default contrast");
+static uint gain = SUR40_GAIN_DEF;
+module_param(gain, uint, 0644);
+MODULE_PARM_DESC(contrast, "set default gain");
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -209,6 +210,7 @@ struct sur40_state {
 	struct video_device vdev;
 	struct mutex lock;
 	struct v4l2_pix_format pix_fmt;
+	struct v4l2_ctrl_handler ctrls;
 
 	struct vb2_queue queue;
 	struct list_head buf_list;
@@ -218,6 +220,7 @@ struct sur40_state {
 	struct sur40_data *bulk_in_buffer;
 	size_t bulk_in_size;
 	u8 bulk_in_epaddr;
+	u8 vsvideo;
 
 	char phys[64];
 };
@@ -231,6 +234,11 @@ struct sur40_buffer {
 static const struct video_device sur40_video_device;
 static const struct vb2_queue sur40_queue;
 static void sur40_process_video(struct sur40_state *sur40);
+static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
+
+static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
+        .s_ctrl = sur40_s_ctrl,
+};
 
 /*
  * Note: an earlier, non-public version of this driver used USB_RECIP_ENDPOINT
@@ -313,6 +321,7 @@ static void sur40_set_vsvideo( struct sur40_state *handle, u8 value ) {
 	int i;
 	for (i = 0; i < 4; i++)
 		sur40_poke( handle, 0x1c+i, value );
+	handle->vsvideo = value;
 }
 
 static void sur40_set_irlevel( struct sur40_state *handle, u8 value ) {
@@ -377,9 +386,9 @@ static void sur40_open(struct input_polled_dev *polldev)
 	dev_dbg(sur40->dev, "open\n");
 	sur40_init(sur40);
 
-	// set default values
-	sur40_set_irlevel(sur40, SUR40_BRIGHTNESS_DEF);
-	sur40_set_vsvideo(sur40, SUR40_VSVIDEO_DEF);
+	/* set default values */
+	sur40_set_irlevel(sur40, brightness & 0xFF);
+	sur40_set_vsvideo(sur40, ((contrast & 0x0F) << 4) | (gain & 0x0F));
 	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
@@ -402,24 +411,27 @@ static void sur40_close(struct input_polled_dev *polldev)
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
 	int wide, major, minor;
-	int type = MT_TOOL_FINGER;
+	int bb_size_x, bb_size_y, pos_x, pos_y, ctr_x, ctr_y, slotnum;
 
-	int bb_size_x = le16_to_cpu(blob->bb_size_x);
-	int bb_size_y = le16_to_cpu(blob->bb_size_y);
+	if (blob->type != SUR40_TOUCH)
+		return;
 
-	int pos_x = le16_to_cpu(blob->pos_x);
-	int pos_y = le16_to_cpu(blob->pos_y);
-
-	int ctr_x = le16_to_cpu(blob->ctr_x);
-	int ctr_y = le16_to_cpu(blob->ctr_y);
-
-	int slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
+	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
 	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
 		return;
 
+	bb_size_x = le16_to_cpu(blob->bb_size_x);
+	bb_size_y = le16_to_cpu(blob->bb_size_y);
+
+	pos_x = le16_to_cpu(blob->pos_x);
+	pos_y = le16_to_cpu(blob->pos_y);
+
+	ctr_x = le16_to_cpu(blob->ctr_x);
+	ctr_y = le16_to_cpu(blob->ctr_y);
+
 	input_mt_slot(input, slotnum);
-	if (blob->type < SUR40_TOUCH) type = MT_TOOL_PALM;
-	input_mt_report_slot_state(input, type, 1);
+	//if (blob->type < SUR40_TOUCH) type = MT_TOOL_PALM;
+	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
 	minor = min(bb_size_x, bb_size_y);
@@ -482,10 +494,11 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		/*
 		 * Sanity check. when video data is also being retrieved, the
 		 * packet ID will usually increase in the middle of a series
-		 * instead of at the end. however, the data is still consistent, so
-		 * the packet ID is probably just valid for the first packet in a series.
+		 * instead of at the end. However, the data is still consistent,
+		 * so the packet ID is probably just valid for the first packet
+		 * in a series.
 
-		if (packet_id != header->packet_id)
+		if (packet_id != le32_to_cpu(header->packet_id))
 			dev_dbg(sur40->dev, "packet ID mismatch\n");
 		 */
 
@@ -644,6 +657,9 @@ static int sur40_probe(struct usb_interface *interface,
 	if (iface_desc->desc.bInterfaceClass != 0xFF)
 		return -ENODEV;
 
+	if (iface_desc->desc.bNumEndpoints < 5)
+		return -ENODEV;
+
 	/* Use endpoint #4 (0x86). */
 	endpoint = &iface_desc->endpoint[4].desc;
 	if (endpoint->bEndpointAddress != TOUCH_ENDPOINT)
@@ -731,7 +747,24 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->vdev.queue = &sur40->queue;
 	video_set_drvdata(&sur40->vdev, sur40);
 
-	error = video_register_device(&sur40->vdev, sur40_camera?VFL_TYPE_GRABBER:VFL_TYPE_TOUCH, -1);
+	/* initialize the control handler for 4 controls */
+	v4l2_ctrl_handler_init(&sur40->ctrls, 4);
+	sur40->v4l2.ctrl_handler = &sur40->ctrls;
+
+	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_BRIGHTNESS,
+	  SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX, 1, SUR40_BRIGHTNESS_DEF);
+
+	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_CONTRAST,
+	  SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX, 1, SUR40_CONTRAST_DEF);
+
+	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_GAIN,
+	  SUR40_GAIN_MIN, SUR40_GAIN_MAX, 1, SUR40_GAIN_DEF);
+
+	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops,
+	  V4L2_CID_BACKLIGHT_COMPENSATION, SUR40_BACKLIGHT_MIN,
+	  SUR40_BACKLIGHT_MAX, 1, SUR40_BACKLIGHT_DEF);
+
+	error = video_register_device(&sur40->vdev, VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video subdevice.");
@@ -763,6 +796,7 @@ static void sur40_disconnect(struct usb_interface *interface)
 {
 	struct sur40_state *sur40 = usb_get_intfdata(interface);
 
+	v4l2_ctrl_handler_free(&sur40->ctrls);
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_unregister(&sur40->v4l2);
 
@@ -894,7 +928,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 {
 	if (i->index != 0)
 		return -EINVAL;
-	i->type = sur40_camera?V4L2_INPUT_TYPE_CAMERA:V4L2_INPUT_TYPE_TOUCH;
+	i->type = V4L2_INPUT_TYPE_TOUCH;
 	i->std = V4L2_STD_UNKNOWN;
 	strlcpy(i->name, "In-Cell Sensor", sizeof(i->name));
 	i->capabilities = 0;
@@ -956,109 +990,30 @@ static int sur40_vidioc_g_fmt(struct file *file, void *priv,
 	return 0;
 }
 
-
-static int sur40_vidioc_queryctrl(struct file *file, void *fh,
-                               struct v4l2_queryctrl *qc) {
-
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		qc->flags = 0;
-		sprintf(qc->name,"Brightness");
-		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = SUR40_BRIGHTNESS_MIN;
-		qc->default_value = SUR40_BRIGHTNESS_DEF;
-		qc->maximum = SUR40_BRIGHTNESS_MAX;
-		qc->step = 8;
-		return 0;
-	case V4L2_CID_CONTRAST:
-		qc->flags = 0;
-		sprintf(qc->name,"Contrast");
-		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = SUR40_CONTRAST_MIN;
-		qc->default_value = SUR40_CONTRAST_DEF;
-		qc->maximum = SUR40_CONTRAST_MAX;
-		qc->step = 1;
-		return 0;
-	case V4L2_CID_GAIN:
-		qc->flags = 0;
-		sprintf(qc->name,"Gain");
-		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = SUR40_GAIN_MIN;
-		qc->default_value = SUR40_GAIN_DEF;
-		qc->maximum = SUR40_GAIN_MAX;
-		qc->step = 1;
-		return 0;
-	case V4L2_CID_BACKLIGHT_COMPENSATION:
-		qc->flags = 0;
-		sprintf(qc->name,"Preprocessor");
-		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->minimum = SUR40_BACKLIGHT_MIN;
-		qc->default_value = SUR40_BACKLIGHT_DEF;
-		qc->maximum = SUR40_BACKLIGHT_MAX;
-		qc->step = 1;
-		return 0;
-	default:
-		qc->flags = V4L2_CTRL_FLAG_DISABLED;
-		return -EINVAL;
-	}
-}
-
-static int sur40_vidioc_g_ctrl(struct file *file, void *fh,
-                            struct v4l2_control *ctrl) {
+static int sur40_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct sur40_state *sur40  = container_of(ctrl->handler,
+	  struct sur40_state, ctrls);
+	u8 value = sur40->vsvideo;
 
 	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = sur40_v4l2_brightness;
-		return 0;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = sur40_v4l2_contrast;
-		return 0;
-	case V4L2_CID_GAIN:
-		ctrl->value = sur40_v4l2_gain;
-		return 0;
-	case V4L2_CID_BACKLIGHT_COMPENSATION:
-		ctrl->value = sur40_v4l2_backlight;
-		return 0;
-	default:
-		return -EINVAL;
+		case V4L2_CID_BRIGHTNESS:
+			sur40_set_irlevel(sur40, ctrl->val);
+			break;
+		case V4L2_CID_CONTRAST:
+			value = (value & 0x0F) | (ctrl->val << 4);
+			sur40_set_vsvideo(sur40, value);
+			break;
+		case V4L2_CID_GAIN:
+			value = (value & 0xF0) | (ctrl->val);
+			sur40_set_vsvideo(sur40, value);
+			break;
+		case V4L2_CID_BACKLIGHT_COMPENSATION:
+			sur40_set_preprocessor(sur40, ctrl->val);
+			break;
 	}
+	return 0;
 }
-
-static int sur40_vidioc_s_ctrl(struct file *file, void *fh,
-                            struct v4l2_control *ctrl) {
-	u8 value = 0;
-	struct sur40_state *sur40 = video_drvdata(file);
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		sur40_v4l2_brightness = ctrl->value;
-		if (sur40_v4l2_brightness < SUR40_BRIGHTNESS_MIN) sur40_v4l2_brightness = SUR40_BRIGHTNESS_MIN;
-		else if (sur40_v4l2_brightness > SUR40_BRIGHTNESS_MAX) sur40_v4l2_brightness = SUR40_BRIGHTNESS_MAX;
-		sur40_set_irlevel(sur40, sur40_v4l2_brightness);
-		return 0;
-	case V4L2_CID_CONTRAST:
-		sur40_v4l2_contrast = ctrl->value;
-		if (sur40_v4l2_contrast < SUR40_CONTRAST_MIN) sur40_v4l2_contrast = SUR40_CONTRAST_MIN;
-		else if (sur40_v4l2_contrast > SUR40_CONTRAST_MAX) sur40_v4l2_contrast = SUR40_CONTRAST_MAX;
-		value = (sur40_v4l2_contrast << 4) + sur40_v4l2_gain;
-		sur40_set_vsvideo(sur40, value);
-		return 0;
-	case V4L2_CID_GAIN:
-		sur40_v4l2_gain = ctrl->value;
-		if (sur40_v4l2_gain < SUR40_GAIN_MIN) sur40_v4l2_gain = SUR40_GAIN_MIN;
-		else if (sur40_v4l2_gain > SUR40_GAIN_MAX) sur40_v4l2_gain = SUR40_GAIN_MAX;
-		value = (sur40_v4l2_contrast << 4) + sur40_v4l2_gain;
-		sur40_set_vsvideo(sur40, value);
-		return 0;
-	case V4L2_CID_BACKLIGHT_COMPENSATION:
-		sur40_v4l2_backlight = ctrl->value;
-		sur40_set_preprocessor(sur40, sur40_v4l2_backlight);
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 
 static int sur40_ioctl_parm(struct file *file, void *priv,
 			    struct v4l2_streamparm *p)
@@ -1177,10 +1132,6 @@ static const struct v4l2_ioctl_ops sur40_video_ioctl_ops = {
 	.vidioc_enum_input	= sur40_vidioc_enum_input,
 	.vidioc_g_input		= sur40_vidioc_g_input,
 	.vidioc_s_input		= sur40_vidioc_s_input,
-
-	.vidioc_queryctrl	= sur40_vidioc_queryctrl,
-	.vidioc_g_ctrl		= sur40_vidioc_g_ctrl,
-	.vidioc_s_ctrl		= sur40_vidioc_s_ctrl,
 
 	.vidioc_reqbufs		= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs	= vb2_ioctl_create_bufs,
