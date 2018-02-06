@@ -1,12 +1,8 @@
 /*
- * microsoft surface 2.0 open source driver 0.0.1
+ * microsoft surface 2.0 open source driver 0.9
  *
  * Copyright (c) 2012 by Florian Echtler <floe@butterbrot.org>
  * Licensed under GNU General Public License (GPL) v2 or later
- *
- * this is so experimental that the warranty shot itself.
- * so don't expect any.
- *
  */
 
 #ifndef _SURFACE_H_
@@ -14,10 +10,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 #include <libusb-1.0/libusb.h>
 
-#define ID_MICROSOFT 0x045e
+#define ID_MICROSOFT 0x045E
 #define ID_SURFACE   0x0775
 
 #define VIDEO_RES_X 960
@@ -35,8 +30,7 @@ struct surface_header {
 	uint32_t packet_id;
 
 	uint32_t timestamp; // milliseconds (increases by 16 or 17 each frame)
-	uint32_t unknown;   // "epoch?" always 02/03 00 00 00 
-
+	uint32_t unknown;   // "epoch?" always 02/03 00 00 00
 };
 
 
@@ -44,7 +38,7 @@ struct surface_blob {
 
 	uint16_t blob_id;
 
-	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?) 
+	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?)
 	uint8_t type;       // 0x01 blob, 0x02 finger, 0x04 tag (bitmask)
 
 	uint16_t bb_pos_x;  // upper left corner of bounding box
@@ -60,7 +54,7 @@ struct surface_blob {
 	uint16_t ctr_y;
 
 	uint16_t axis_x;    // somehow related to major/minor axis, mostly:
-	uint16_t axis_y;    // axis_x == bb_size_y && axis_y == bb_size_x 
+	uint16_t axis_y;    // axis_x == bb_size_y && axis_y == bb_size_x
 
 	float    angle;     // orientation in radians relative to x axis
 	uint32_t area;      // size in pixels/pressure (?)
@@ -79,7 +73,7 @@ struct surface_image {
 	uint32_t packet_id;
 	uint32_t size;      // always 0x0007e900 = 960x540
 	uint32_t timestamp; // milliseconds (increases by 16 or 17 each frame)
-	uint32_t unknown;   // "epoch?" always 02/03 00 00 00 
+	uint32_t unknown;   // "epoch?" always 02/03 00 00 00
 };
 
 
@@ -134,7 +128,7 @@ void sur40_close_device(libusb_device_handle* handle);
 int surface_get_status( libusb_device_handle* handle );
 
 // get sensor status
-void surface_get_sensors( libusb_device_handle* handle );
+void surface_get_sensors( libusb_device_handle* handle, surface_sensors *sensors, bool verbose = false );
 
 // initialization sequence
 void surface_init( libusb_device_handle* handle, bool verbose = false );
@@ -147,7 +141,7 @@ int surface_get_blobs( libusb_device_handle* handle, surface_blob* blob );
 void surface_calib_start( libusb_device_handle* handle );
 void surface_calib_end( libusb_device_handle* handle );
 
-void surface_set_vsvideo( libusb_device_handle* handle, uint8_t value = 0xA8 );
+void surface_set_vsvideo( libusb_device_handle* handle, uint8_t value = 0x86 );
 void surface_set_irlevel( libusb_device_handle* handle, uint8_t value = 0xFF );
 void surface_set_preprocessor( libusb_device_handle* handle, uint8_t value = 0x01);
 void surface_peek( libusb_device_handle* handle );

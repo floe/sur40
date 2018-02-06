@@ -69,11 +69,10 @@ void TuioPoint::update (float xp, float yp) {
 void TuioPoint::update (TuioTime ttime, float xp, float yp) {
 	
 	if (xposFilter && yposFilter) {
-		TuioTime diffTime = ttime - startTime;
+		TuioTime diffTime = ttime - currentTime;
 		float dt = diffTime.getTotalMilliseconds()/1000.0f;
 		xp = xposFilter->filter(xp,dt);
 		yp = yposFilter->filter(yp,dt);
-		//std::cout << dt << " " << xp << " " << xpos << " " << yp << " " << ypos << std::endl;
 	}
 		
 	float dx = fabs(xpos - xp);
@@ -162,9 +161,9 @@ void TuioPoint::removePositionThreshold() {
 void TuioPoint::addPositionFilter(float mcut, float beta) {
 
 	if (xposFilter) delete xposFilter;
-	xposFilter = new OneEuroFilter(60.0f, mcut, beta, 1.0f);
+	xposFilter = new OneEuroFilter(60.0f, mcut, beta, 10.0f);
 	if (yposFilter) delete yposFilter;
-	yposFilter = new OneEuroFilter(60.0f, mcut, beta, 1.0f);
+	yposFilter = new OneEuroFilter(60.0f, mcut, beta, 10.0f);
 }
 
 void TuioPoint::removePositionFilter() {
