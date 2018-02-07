@@ -389,11 +389,6 @@ static void sur40_open(struct input_polled_dev *polldev)
 
 	dev_dbg(sur40->dev, "open\n");
 	sur40_init(sur40);
-
-	/* set default values */
-	sur40_set_irlevel(sur40, brightness & 0xFF);
-	sur40_set_vsvideo(sur40, ((contrast & 0x0F) << 4) | (gain & 0x0F));
-	sur40_set_preprocessor(sur40, SUR40_BACKLIGHT_DEF);
 }
 
 /* Disable device, polling has stopped. */
@@ -754,19 +749,25 @@ static int sur40_probe(struct usb_interface *interface,
 	/* initialize the control handler for 4 controls */
 	v4l2_ctrl_handler_init(&sur40->ctrls, 4);
 	sur40->v4l2.ctrl_handler = &sur40->ctrls;
+	sur40->vsvideo = (SUR40_CONTRAST_DEF << 4) | SUR40_GAIN_DEF;
 
 	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_BRIGHTNESS,
-	  SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX, 1, SUR40_BRIGHTNESS_DEF);
+	  SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX, 1, clamp(brightness,
+	  (uint)SUR40_BRIGHTNESS_MIN, (uint)SUR40_BRIGHTNESS_MAX));
 
 	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_CONTRAST,
-	  SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX, 1, SUR40_CONTRAST_DEF);
+	  SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX, 1, clamp(contrast,
+	  (uint)SUR40_CONTRAST_MIN, (uint)SUR40_CONTRAST_MAX));
 
 	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_GAIN,
-	  SUR40_GAIN_MIN, SUR40_GAIN_MAX, 1, SUR40_GAIN_DEF);
+	  SUR40_GAIN_MIN, SUR40_GAIN_MAX, 1, clamp(gain,
+	  (uint)SUR40_GAIN_MIN, (uint)SUR40_GAIN_MAX));
 
 	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops,
 	  V4L2_CID_BACKLIGHT_COMPENSATION, SUR40_BACKLIGHT_MIN,
 	  SUR40_BACKLIGHT_MAX, 1, SUR40_BACKLIGHT_DEF);
+
+	v4l2_ctrl_handler_setup(&sur40->ctrls);
 
 	if (sur40->ctrls.error) {
 		dev_err(&interface->dev,
