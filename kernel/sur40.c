@@ -237,7 +237,7 @@ static void sur40_process_video(struct sur40_state *sur40);
 static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
 
 static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
-        .s_ctrl = sur40_s_ctrl,
+	.s_ctrl = sur40_s_ctrl,
 };
 
 /*
@@ -260,7 +260,7 @@ static int sur40_command(struct sur40_state *dev,
 }
 
 /* poke a byte in the panel register space */
-static int sur40_poke( struct sur40_state *dev, u8 offset, u8 value )
+static int sur40_poke(struct sur40_state *dev, u8 offset, u8 value)
 {
 	int result;
 	u8 index = 0x96; // 0xae for permanent write
@@ -290,7 +290,7 @@ error:
 	return result;
 }
 
-static int sur40_set_preprocessor( struct sur40_state *dev, u8 value )
+static int sur40_set_preprocessor(struct sur40_state *dev, u8 value)
 {
 	u8 setting_07[2] = { 0x01, 0x00 };
 	u8 setting_17[2] = { 0x85, 0x80 };
@@ -317,17 +317,21 @@ error:
 	return result;
 }
 
-static void sur40_set_vsvideo( struct sur40_state *handle, u8 value ) {
+static void sur40_set_vsvideo(struct sur40_state *handle, u8 value)
+{
 	int i;
+
 	for (i = 0; i < 4; i++)
-		sur40_poke( handle, 0x1c+i, value );
+		sur40_poke(handle, 0x1c+i, value);
 	handle->vsvideo = value;
 }
 
-static void sur40_set_irlevel( struct sur40_state *handle, u8 value ) {
+static void sur40_set_irlevel(struct sur40_state *handle, u8 value)
+{
 	int i;
+
 	for (i = 0; i < 8; i++)
-		sur40_poke( handle, 0x08+(2*i), value );
+		sur40_poke(handle, 0x08+(2*i), value);
 }
 
 /* Initialization routine, called from sur40_open */
@@ -997,20 +1001,20 @@ static int sur40_s_ctrl(struct v4l2_ctrl *ctrl)
 	u8 value = sur40->vsvideo;
 
 	switch (ctrl->id) {
-		case V4L2_CID_BRIGHTNESS:
-			sur40_set_irlevel(sur40, ctrl->val);
-			break;
-		case V4L2_CID_CONTRAST:
-			value = (value & 0x0F) | (ctrl->val << 4);
-			sur40_set_vsvideo(sur40, value);
-			break;
-		case V4L2_CID_GAIN:
-			value = (value & 0xF0) | (ctrl->val);
-			sur40_set_vsvideo(sur40, value);
-			break;
-		case V4L2_CID_BACKLIGHT_COMPENSATION:
-			sur40_set_preprocessor(sur40, ctrl->val);
-			break;
+	case V4L2_CID_BRIGHTNESS:
+		sur40_set_irlevel(sur40, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		value = (value & 0x0F) | (ctrl->val << 4);
+		sur40_set_vsvideo(sur40, value);
+		break;
+	case V4L2_CID_GAIN:
+		value = (value & 0xF0) | (ctrl->val);
+		sur40_set_vsvideo(sur40, value);
+		break;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		sur40_set_preprocessor(sur40, ctrl->val);
+		break;
 	}
 	return 0;
 }
