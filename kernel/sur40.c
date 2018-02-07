@@ -170,13 +170,13 @@ struct sur40_image_header {
 /* module parameters */
 static uint brightness = SUR40_BRIGHTNESS_DEF;
 module_param(brightness, uint, 0644);
-MODULE_PARM_DESC(brightness, "set default brightness");
+MODULE_PARM_DESC(brightness, "set initial brightness");
 static uint contrast = SUR40_CONTRAST_DEF;
 module_param(contrast, uint, 0644);
-MODULE_PARM_DESC(contrast, "set default contrast");
+MODULE_PARM_DESC(contrast, "set initial contrast");
 static uint gain = SUR40_GAIN_DEF;
 module_param(gain, uint, 0644);
-MODULE_PARM_DESC(contrast, "set default gain");
+MODULE_PARM_DESC(gain, "set initial gain");
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -767,6 +767,13 @@ static int sur40_probe(struct usb_interface *interface,
 	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops,
 	  V4L2_CID_BACKLIGHT_COMPENSATION, SUR40_BACKLIGHT_MIN,
 	  SUR40_BACKLIGHT_MAX, 1, SUR40_BACKLIGHT_DEF);
+
+	if (sur40->ctrls.error) {
+		dev_err(&interface->dev,
+			"Unable to register video controls.");
+		v4l2_ctrl_handler_free(&sur40->ctrls);
+		goto err_unreg_v4l2;
+	}
 
 	error = video_register_device(&sur40->vdev, VFL_TYPE_TOUCH, -1);
 	if (error) {
