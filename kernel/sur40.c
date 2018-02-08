@@ -151,13 +151,13 @@ struct sur40_image_header {
 #define SUR40_TAG	0x04
 
 /* video controls */
-#define SUR40_BRIGHTNESS_MAX 0xFF
+#define SUR40_BRIGHTNESS_MAX 0xff
 #define SUR40_BRIGHTNESS_MIN 0x00
-#define SUR40_BRIGHTNESS_DEF 0xFF
+#define SUR40_BRIGHTNESS_DEF 0xff
 
-#define SUR40_CONTRAST_MAX 0x0F
+#define SUR40_CONTRAST_MAX 0x0f
 #define SUR40_CONTRAST_MIN 0x00
-#define SUR40_CONTRAST_DEF 0x0A
+#define SUR40_CONTRAST_DEF 0x0a
 
 #define SUR40_GAIN_MAX 0x09
 #define SUR40_GAIN_MIN 0x00
@@ -167,16 +167,22 @@ struct sur40_image_header {
 #define SUR40_BACKLIGHT_MIN 0x00
 #define SUR40_BACKLIGHT_DEF 0x01
 
+#define sur40_str(s) #s
+#define SUR40_PARAM_RANGE(lo,hi) " (range " sur40_str(lo) "-" sur40_str(hi) ")"
+
 /* module parameters */
 static uint brightness = SUR40_BRIGHTNESS_DEF;
 module_param(brightness, uint, 0644);
-MODULE_PARM_DESC(brightness, "set initial brightness");
+MODULE_PARM_DESC(brightness, "set initial brightness"
+	SUR40_PARAM_RANGE(SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX));
 static uint contrast = SUR40_CONTRAST_DEF;
 module_param(contrast, uint, 0644);
-MODULE_PARM_DESC(contrast, "set initial contrast");
+MODULE_PARM_DESC(contrast, "set initial contrast"
+	SUR40_PARAM_RANGE(SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX));
 static uint gain = SUR40_GAIN_DEF;
 module_param(gain, uint, 0644);
-MODULE_PARM_DESC(gain, "set initial gain");
+MODULE_PARM_DESC(gain, "set initial gain"
+	SUR40_PARAM_RANGE(SUR40_GAIN_MIN, SUR40_GAIN_MAX));
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -210,7 +216,7 @@ struct sur40_state {
 	struct video_device vdev;
 	struct mutex lock;
 	struct v4l2_pix_format pix_fmt;
-	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_ctrl_handler hdl;
 
 	struct vb2_queue queue;
 	struct list_head buf_list;
@@ -429,7 +435,6 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	ctr_y = le16_to_cpu(blob->ctr_y);
 
 	input_mt_slot(input, slotnum);
-	//if (blob->type < SUR40_TOUCH) type = MT_TOOL_PALM;
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
@@ -747,32 +752,32 @@ static int sur40_probe(struct usb_interface *interface,
 	video_set_drvdata(&sur40->vdev, sur40);
 
 	/* initialize the control handler for 4 controls */
-	v4l2_ctrl_handler_init(&sur40->ctrls, 4);
-	sur40->v4l2.ctrl_handler = &sur40->ctrls;
+	v4l2_ctrl_handler_init(&sur40->hdl, 4);
+	sur40->v4l2.ctrl_handler = &sur40->hdl;
 	sur40->vsvideo = (SUR40_CONTRAST_DEF << 4) | SUR40_GAIN_DEF;
 
-	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_BRIGHTNESS,
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops, V4L2_CID_BRIGHTNESS,
 	  SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX, 1, clamp(brightness,
 	  (uint)SUR40_BRIGHTNESS_MIN, (uint)SUR40_BRIGHTNESS_MAX));
 
-	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_CONTRAST,
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops, V4L2_CID_CONTRAST,
 	  SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX, 1, clamp(contrast,
 	  (uint)SUR40_CONTRAST_MIN, (uint)SUR40_CONTRAST_MAX));
 
-	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops, V4L2_CID_GAIN,
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops, V4L2_CID_GAIN,
 	  SUR40_GAIN_MIN, SUR40_GAIN_MAX, 1, clamp(gain,
 	  (uint)SUR40_GAIN_MIN, (uint)SUR40_GAIN_MAX));
 
-	v4l2_ctrl_new_std(&sur40->ctrls, &sur40_ctrl_ops,
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops,
 	  V4L2_CID_BACKLIGHT_COMPENSATION, SUR40_BACKLIGHT_MIN,
 	  SUR40_BACKLIGHT_MAX, 1, SUR40_BACKLIGHT_DEF);
 
-	v4l2_ctrl_handler_setup(&sur40->ctrls);
+	v4l2_ctrl_handler_setup(&sur40->hdl);
 
-	if (sur40->ctrls.error) {
+	if (sur40->hdl.error) {
 		dev_err(&interface->dev,
 			"Unable to register video controls.");
-		v4l2_ctrl_handler_free(&sur40->ctrls);
+		v4l2_ctrl_handler_free(&sur40->hdl);
 		goto err_unreg_v4l2;
 	}
 
@@ -808,7 +813,7 @@ static void sur40_disconnect(struct usb_interface *interface)
 {
 	struct sur40_state *sur40 = usb_get_intfdata(interface);
 
-	v4l2_ctrl_handler_free(&sur40->ctrls);
+	v4l2_ctrl_handler_free(&sur40->hdl);
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_unregister(&sur40->v4l2);
 
@@ -1005,7 +1010,7 @@ static int sur40_vidioc_g_fmt(struct file *file, void *priv,
 static int sur40_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sur40_state *sur40  = container_of(ctrl->handler,
-	  struct sur40_state, ctrls);
+	  struct sur40_state, hdl);
 	u8 value = sur40->vsvideo;
 
 	switch (ctrl->id) {
