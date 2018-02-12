@@ -1,252 +1,69 @@
-start of calib control sequence @ 3904 {
+```
+SetCaptureMode(RawFullFrame)
+WledPwmClkHz = 0
 
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
-	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-
-	c0 b0 00 00 02 00 0c 00 [read 12 bytes] "2.0.21227.00"
-	c0 b0 00 00 00 00 0c 00 [read 12 bytes] "2.0.21209.01"
-
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
-	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-
-	40 c5 05 00 04 00 00 00 // SetCaptureMode(RawFullFrame)
-	40 c5 07 00 01 00 00 00
-	40 c5 17 00 85 00 00 00
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 17 00 00 00, 40 c5 b2 00 00 00 00 00 // WledPwmClkHz = 0
-
-	// ComputeVideo0
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 c7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 c7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 c7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 c7 00 00 00
-
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
-	                                        ff 00 ff 00 ff 00 ff 00 75 01 6f 38 c7 c7 c7 99
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-
-	// SetIrStrength(0x20)
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0c 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0e 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 10 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 12 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 14 00 00 00, 40 c5 b2 00 20 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 16 00 00 00, 40 c5 b2 00 20 00 00 00
+ComputeVideo0 {
+	SetIrStrength(0x20)
+	bulk read 2 (large) images from endpoint 0x82 
+	(size == 1036800 = 960x540x2, takes ~ 0.5s / frame)
 }
 
-bulk read 2 images from endpoint 0x82
-	size == 1036800 - double the normal size!!! (960x540x2)
-	also takes ~ 0.5s / frame
-
-control sequence {
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 b7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 b7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 b7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 b7 00 00 00
+ComputeVsBias {
+	SetIrStrength(0xFF)
+	bulk read 2 (large) images from endpoint 0x82
+	bulk read 2 (large) images from endpoint 0x82
+	bulk read 2 (large) images from endpoint 0x82
 }
 
-bulk read 2 (large) images from endpoint 0x82
-
-control sequence {
-	
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 a7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 a7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 a7 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 a7 00 00 00
-}
-
-bulk read 2 (large) images from endpoint 0x82
-
-control sequence @ 16262 {
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 97 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 97 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 97 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 97 00 00 00
-}
-
-// end of ComputeVideo0
-
-bulk read 2 (large) images from endpoint 0x82
-
-control sequence @ 20349 {
-	// ComputeVsBias
-	// SetIrStrength(0xFF)
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 10 00 00 20 00 20 00 20 00 20 00
-	                                        20 00 20 00 20 00 20 00 75 01 6f 38 97 97 97 97
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0c 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0e 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 10 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 12 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 14 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 16 00 00 00, 40 c5 b2 00 ff 00 00 00
-}
-
-bulk read 2 (large) images from endpoint 0x82
-
-control sequence @ 24456 {
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 98 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 98 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 98 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 98 00 00 00
-}
-
-bulk read 2 (large) images from endpoint 0x82
-
-control sequence @ 24456 {
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 99 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 99 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 99 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 99 00 00 00
-}
-
-bulk read 2 (large) images from endpoint 0x82
-
-// end of ComputeVsBias
-
-control sequence @ 32623 {
-	
-	// SaveVideo0Bias
-	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1c 00 00 00, 40 c5 b2 00 99 00 00 00
-	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1d 00 00 00, 40 c5 b2 00 99 00 00 00
-	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1e 00 00 00, 40 c5 b2 00 99 00 00 00
-	40 c5 32 00 ae 00 00 00, 40 c5 72 00 1f 00 00 00, 40 c5 b2 00 99 00 00 00
-
-	// SetIrStrength(0x80)
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
-	                                        ff 00 ff 00 ff 00 ff 00 75 01 6f 38 99 99 99 99
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-											
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0c 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0e 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 10 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 12 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 14 00 00 00, 40 c5 b2 00 80 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 16 00 00 00, 40 c5 b2 00 80 00 00 00
-}
+SaveVideo0Bias
 
 // "acquiring gray reference image"
+SetIrStrength(0x80)
 bulk read 3 (large) images from endpoint 0x82
-
-	// SetIrStrength(0xFF)
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 80 00 80 00 80 00 80 00
-	                                        80 00 80 00 80 00 80 00 75 01 6f 38 99 99 99 99
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 08 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0a 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0c 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 0e 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 10 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 12 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 14 00 00 00, 40 c5 b2 00 ff 00 00 00
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 16 00 00 00, 40 c5 b2 00 ff 00 00 00
 
 // "acquiring white reference image"
+SetIrStrength(0xFF)
 bulk read 3 (large) images from endpoint 0x82
 
-	// "resetting panel state"
-	40 c5 05 00 00 00 00 00 // SetCaptureMode(Corrected)
-	40 c5 07 00 00 00 00 00
-	40 c5 17 00 80 00 00 00
-
-	40 c5 32 00 96 00 00 00, 40 c5 72 00 17 00 00 00, 40 c5 b2 00 04 00 00 00 // restore wledPwmClkHz
-
-	// WriteToDDR(0x5000000,2048)
-	[bulk write 2048 bytes (with headers) to endpoint 0x08 ]
-		header == 0xOOOOOOOO 0xSSSSSSSS (O = Offsets starting at 0x05000000, S = always 0x00000800)
+// "resetting panel state"
+SetCaptureMode(Corrected)
+WriteToDDR(0x5000000,2048)
 
 AccumulateWhite {
 	
   ResetAllSettings {
-	40 c5 17 00 80 00 00 00
-	// EP0Helper.GetParameters
-	c0 b4 00 00 00 00 40 00 [read 64 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
-	                                        08 04 09 01 06 06 04 07 03 04 0a 08 01 05
-	// EP0Helper.SetParameters
-	40 b6 00 00 00 00 2a 00 [send 42 bytes] 17 80 37 64 47 32 02 08 18 94 28 10 07 00 05 00
-	                                        08 04 09 01 06 06 04 07 03 04 0a 08 01 05 fb f8
-	                                        f9 fe fd fa fa fa fc fb fe fb
-
-	40 c5 07 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [send 42 bytes] same as above
-
-	40 c5 05 00 00 00 00 00 // SetCaptureMode(Corrected)
-	40 b6 00 00 00 00 2a 00 [send 42 bytes] same as above
+		EP0Helper.GetParameters
+		EP0Helper.SetParameters
+		SetCaptureMode(Corrected)
   }
 
-	40 c5 07 00 04 00 00 00
-	[long pause in-between: "Accumulating White"]
-	40 c5 07 00 00 00 00 00
+	// 40 c5 07 00 04 00 00 00
+	[pause ~ 5.5 sec: "Accumulating White"]
+	// 40 c5 07 00 00 00 00 00
 
   AdjustWhite {
-	40 b1 00 00 01 00 00 00 <- possibly something like "reset sensors"? // SetFpgaReadsEnable(true)
-	40 c4 00 00 00 00 08 00 [send 8 bytes] 00 00 00 05 00 e0 10 00      // StartFpgaDdrMemoryRead(0x05000000,0x0010e000)
+		SetFpgaReadsEnable(true)
+		StartFpgaDdrMemoryRead(0x05000000,0x0010e000)
+		// 960 x 2 bytes + 128 bytes padding per line, 540 lines
+		// maybe lower & upper threshold per pixel?
 
-	[bulk read 2160 x 512 bytes from endpoint 0x04]
-		960 x 2 bytes + 128 bytes padding per line, 540 lines
-		maybe lower & upper threshold per pixel?
-
-	// CreateRegisterHelper
-	c0 c4 00 00 00 00 30 00 [read 48 bytes] 22 22 60 ff ff 00 00 00 ff 00 ff 00 ff 00 ff 00
-	                                        ff 00 ff 00 ff 00 ff 04 75 01 6f 38 99 99 99 99
-	                                        21 2f 00 00 00 02 01 00 00 00 75 80 50 00 00 27
-
-	// WriteToDDR
-	[bulk write 540 x 2048 bytes (with headers) to endpoint 0x08]
+		CreateRegisterHelper
+		WriteToDDR [bulk write 540 x 2048 bytes (with headers) to endpoint 0x08]
   }
 }
 
 AccumulateBlack {
 	
   ResetAllSettings {
-	40 c5 17 00 80 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
-
-	40 c5 07 00 00 00 00 00
-	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
-
-	40 c5 05 00 00 00 00 00 // SetCaptureMode(Corrected)
-	40 b6 00 00 00 00 2a 00 [read 42 bytes] same as above
+		EP0Helper.GetParameters (?)
+		EP0Helper.SetParameters (?)
+		SetCaptureMode(Corrected)
   }
 
-	40 c5 07 00 02 00 00 00
-	[long pause in-between: "Accumulating Black"]
-	40 c5 07 00 00 00 00 00
+	// 40 c5 07 00 02 00 00 00
+	[pause ~ 5.0 sec: "Accumulating Black"]
+	// 40 c5 07 00 00 00 00 00
 }
 
-	// SaveCalibrationData
-	40 c3 90 01 01 00 04 00 [read 4 bytes] 00 00 00 05
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 2: 01 de 05 01 00 00 02 66 25 61 a2 00 00 00 e2 e0
-	                                             e2 a0 84 28 04 28 04 05 02 01 06 08 01 05 fb f8
-	                                             00 00 00 00 00 00 00 00 00
-
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->4f, apparently polling for completion
-
-	40 c3 91 01 01 00 04 00 [read 4 bytes] 00 10 00 05
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 4
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->5f
-
-	40 c3 92 01 01 00 04 00 [read 4 bytes] 00 20 00 05
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 6
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->5f
-
-	[repeat ... for total of 540 iterations]
-
-	40 c3 ab 03 01 00 04 00 [read 4 bytes] 00 b0 21 05
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] x 6
-	c0 b5 00 00 00 00 40 00 [read 64 bytes] <- minor change in return data, byte 2 de->4f
-}
+SaveCalibrationData
+```
