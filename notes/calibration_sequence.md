@@ -30,18 +30,18 @@ SetCaptureMode(Corrected)
 WriteToDDR(0x5000000,2048)
 
 AccumulateWhite {
-	
-  ResetAllSettings {
+
+	ResetAllSettings {
 		EP0Helper.GetParameters
 		EP0Helper.SetParameters
 		SetCaptureMode(Corrected)
-  }
+	}
 
 	// 40 c5 07 00 04 00 00 00
 	[pause ~ 5.5 sec: "Accumulating White"]
 	// 40 c5 07 00 00 00 00 00
 
-  AdjustWhite {
+	AdjustWhite {
 		SetFpgaReadsEnable(true)
 		StartFpgaDdrMemoryRead(0x05000000,0x0010e000)
 		// 960 x 2 bytes + 128 bytes padding per line, 540 lines
@@ -49,16 +49,16 @@ AccumulateWhite {
 
 		CreateRegisterHelper
 		WriteToDDR [bulk write 540 x 2048 bytes (with headers) to endpoint 0x08]
-  }
+	}
 }
 
 AccumulateBlack {
-	
-  ResetAllSettings {
+
+	ResetAllSettings {
 		EP0Helper.GetParameters (?)
 		EP0Helper.SetParameters (?)
 		SetCaptureMode(Corrected)
-  }
+	}
 
 	// 40 c5 07 00 02 00 00 00
 	[pause ~ 5.0 sec: "Accumulating Black"]
