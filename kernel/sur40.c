@@ -168,7 +168,7 @@ struct sur40_image_header {
 #define SUR40_BACKLIGHT_DEF 0x01
 
 #define sur40_str(s) #s
-#define SUR40_PARAM_RANGE(lo,hi) " (range " sur40_str(lo) "-" sur40_str(hi) ")"
+#define SUR40_PARAM_RANGE(lo, hi) " (range " sur40_str(lo) "-" sur40_str(hi) ")"
 
 /* module parameters */
 static uint brightness = SUR40_BRIGHTNESS_DEF;
