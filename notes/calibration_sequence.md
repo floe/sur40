@@ -1,33 +1,37 @@
 ```
-SetCaptureMode(RawFullFrame)
-WledPwmClkHz = 0
+// put down white side of calibration board
+RunColumnCorrection {
 
-ComputeVideo0 {
-	SetIrStrength(0x20)
-	bulk read 2 (large) images from endpoint 0x82 
-	(size == 1036800 = 960x540x2, takes ~ 0.5s / frame)
-}
+	SetCaptureMode(RawFullFrame)
+	WledPwmClkHz = 0
 
-ComputeVsBias {
+	ComputeVideo0 {
+		SetIrStrength(0x20)
+		bulk read 2 (large) images from endpoint 0x82 
+		(size == 1036800 = 960x540x2, takes ~ 0.5s / frame)
+	}
+
+	ComputeVsBias {
+		SetIrStrength(0xFF)
+		bulk read 2 (large) images from endpoint 0x82
+		bulk read 2 (large) images from endpoint 0x82
+		bulk read 2 (large) images from endpoint 0x82
+	}
+
+	SaveVideo0Bias
+
+	// "acquiring gray reference image"
+	SetIrStrength(0x80)
+	bulk read 3 (large) images from endpoint 0x82
+
+	// "acquiring white reference image"
 	SetIrStrength(0xFF)
-	bulk read 2 (large) images from endpoint 0x82
-	bulk read 2 (large) images from endpoint 0x82
-	bulk read 2 (large) images from endpoint 0x82
+	bulk read 3 (large) images from endpoint 0x82
+
+	// "resetting panel state"
+	SetCaptureMode(Corrected)
+	WriteToDDR(0x5000000,2048)
 }
-
-SaveVideo0Bias
-
-// "acquiring gray reference image"
-SetIrStrength(0x80)
-bulk read 3 (large) images from endpoint 0x82
-
-// "acquiring white reference image"
-SetIrStrength(0xFF)
-bulk read 3 (large) images from endpoint 0x82
-
-// "resetting panel state"
-SetCaptureMode(Corrected)
-WriteToDDR(0x5000000,2048)
 
 AccumulateWhite {
 
@@ -52,6 +56,7 @@ AccumulateWhite {
 	}
 }
 
+// switch to black side of calibration board
 AccumulateBlack {
 
 	ResetAllSettings {
@@ -61,7 +66,7 @@ AccumulateBlack {
 	}
 
 	// 40 c5 07 00 02 00 00 00
-	[pause ~ 5.0 sec: "Accumulating Black"]
+	[pause ~ 4.5 sec: "Accumulating Black"]
 	// 40 c5 07 00 00 00 00 00
 }
 
