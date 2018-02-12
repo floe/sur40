@@ -1,3 +1,4 @@
+```
 Bus 002 Device 002: ID 045e:0775 Microsoft Corp. 
 Device Descriptor:
   bLength                18
@@ -116,3 +117,4 @@ Device Qualifier (for other device speed):
   bNumConfigurations      1
 Device Status:     0x0001
   Self Powered
+```
