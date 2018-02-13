@@ -148,6 +148,8 @@ void surface_peek( libusb_device_handle* handle );
 
 int surface_read_calib( libusb_device_handle* handle, surface_calib* calib );
 int surface_write_calib( libusb_device_handle* handle, surface_calib* calib );
+void surface_calib_accumulate_white( libusb_device_handle* handle );
+void surface_calib_accumulate_black( libusb_device_handle* handle );
 
 int surface_read_usb_flash( libusb_device_handle* handle, uint8_t buffer[8192] );
 int surface_read_spi_flash( libusb_device_handle* handle, uint16_t page, uint8_t buffer[4096] );

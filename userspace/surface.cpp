@@ -195,6 +195,8 @@ void surface_peek( libusb_device_handle* handle ) {
 }
 
 void surface_calib_accumulate_white( libusb_device_handle* handle ) {
+	// this function expects the surface to be covered with the white side of the calibration board
+	// IR intensity should be at maximum (255)
 	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x04, NULL, 0, timeout ); // AccumulateWhite
 	usleep(5500000);
 	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
@@ -202,6 +204,8 @@ void surface_calib_accumulate_white( libusb_device_handle* handle ) {
 }
 
 void surface_calib_accumulate_black( libusb_device_handle* handle ) {
+	// this function expects the surface to be covered with the black side of the calibration board
+	// IR intensity should be at maximum (255)
 	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x02, NULL, 0, timeout ); // AccumulateBlack
 	usleep(4500000);
 	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, 0x00, NULL, 0, timeout ); // "normal mode"
@@ -376,8 +380,8 @@ void surface_set_preprocessor( libusb_device_handle* handle, uint8_t value )
 
 	if (value > 1) return;
 
-	surface_poke(handle, 0x07, setting_07[value]);
-	surface_poke(handle, 0x17, setting_17[value]);
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT2, setting_07[value], NULL, 0, timeout );
+	libusb_control_transfer( handle, 0x40, SURFACE_POKE, SP_INIT3, setting_17[value], NULL, 0, timeout );
 }
 
 void surface_calib_start( libusb_device_handle* handle ) {
