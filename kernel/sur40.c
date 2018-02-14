@@ -167,6 +167,11 @@ struct sur40_image_header {
 #define SUR40_BACKLIGHT_MIN 0x00
 #define SUR40_BACKLIGHT_DEF 0x01
 
+#ifndef V4L2_CID_USER_SUR40_BASE
+#define V4L2_CID_USER_SUR40_BASE 0x1100
+#endif
+#define V4L2_CID_SUR40_CAL_TABLE (V4L2_CID_USER_SUR40_BASE + 0)
+
 #define sur40_str(s) #s
 #define SUR40_PARAM_RANGE(lo, hi) " (range " sur40_str(lo) "-" sur40_str(hi) ")"
 
@@ -244,6 +249,17 @@ static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
 
 static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
 	.s_ctrl = sur40_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config sur40_cal_table_control = {
+	.ops = &sur40_ctrl_ops,
+	.id = V4L2_CID_SUR40_CAL_TABLE,
+	.name = "Calibration Table",
+	.type = V4L2_CTRL_TYPE_U16,
+	.max = 0xffff,
+	.step = 1,
+	.def = 0,
+	.dims = { 1024, 540 },
 };
 
 /*
@@ -1027,6 +1043,10 @@ static int sur40_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_BACKLIGHT_COMPENSATION:
 		sur40_set_preprocessor(sur40, ctrl->val);
+		break;
+	case V4L2_CID_SUR40_CAL_TABLE:
+		dev_err(&sur40->usbdev->dev, "setting calibration table");
+		/* ... */
 		break;
 	}
 	return 0;
