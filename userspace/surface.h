@@ -38,7 +38,7 @@ struct surface_blob {
 
 	uint16_t blob_id;
 
-	uint8_t action;     // 0x02 = enter/exit, 0x03 = update (?)
+	uint8_t action;     // 0x01 = enter, 0x02 = exit, 0x03 = update
 	uint8_t type;       // 0x01 blob, 0x02 finger, 0x04 tag (bitmask)
 
 	uint16_t bb_pos_x;  // upper left corner of bounding box
