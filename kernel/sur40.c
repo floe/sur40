@@ -59,7 +59,7 @@ struct sur40_blob {
 
 	__le16 blob_id;
 
-	u8 action;         /* 0x02 = enter/exit, 0x03 = update (?) */
+	u8 action;         /* 0x01 = enter, 0x02 = exit, 0x03 = update */
 	u8 type;           /* bitmask (0x01 blob,  0x02 touch, 0x04 tag) */
 
 	__le16 bb_pos_x;   /* upper left corner of bounding box */
@@ -179,15 +179,15 @@ struct sur40_image_header {
 static uint brightness = SUR40_BRIGHTNESS_DEF;
 module_param(brightness, uint, 0644);
 MODULE_PARM_DESC(brightness, "set initial brightness"
-	SUR40_PARAM_RANGE(SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX));
+SUR40_PARAM_RANGE(SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX));
 static uint contrast = SUR40_CONTRAST_DEF;
 module_param(contrast, uint, 0644);
 MODULE_PARM_DESC(contrast, "set initial contrast"
-	SUR40_PARAM_RANGE(SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX));
+SUR40_PARAM_RANGE(SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX));
 static uint gain = SUR40_GAIN_DEF;
 module_param(gain, uint, 0644);
 MODULE_PARM_DESC(gain, "set initial gain"
-	SUR40_PARAM_RANGE(SUR40_GAIN_MIN, SUR40_GAIN_MAX));
+SUR40_PARAM_RANGE(SUR40_GAIN_MIN, SUR40_GAIN_MAX));
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
@@ -246,6 +246,7 @@ static const struct video_device sur40_video_device;
 static const struct vb2_queue sur40_queue;
 static void sur40_process_video(struct sur40_state *sur40);
 static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
+static int max_blob_id = 0;
 
 static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
 	.s_ctrl = sur40_s_ctrl,
@@ -441,6 +442,12 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
 		return;
 
+	input_mt_slot(input, slotnum);
+	if (blob->action==2) {
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, 0);
+		return;
+	}
+
 	bb_size_x = le16_to_cpu(blob->bb_size_x);
 	bb_size_y = le16_to_cpu(blob->bb_size_y);
 
@@ -450,7 +457,6 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	ctr_x = le16_to_cpu(blob->ctr_x);
 	ctr_y = le16_to_cpu(blob->ctr_y);
 
-	input_mt_slot(input, slotnum);
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
@@ -532,6 +538,13 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		for (i = 0; i < packet_blobs; i++) {
 			need_blobs--;
 			dev_dbg(sur40->dev, "processing blob\n");
+
+			if ((inblob[i].action==2) && (inblob[i].blob_id>max_blob_id)) {
+				inblob[i].action=1;
+				max_blob_id=inblob[i].blob_id;
+				if(max_blob_id==65535) max_blob_id=0;
+			}
+
 			sur40_report_blob(&(inblob[i]), input);
 		}
 
