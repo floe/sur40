@@ -470,10 +470,9 @@ int surface_get_blobs( libusb_device_handle* handle, surface_blob* outblob ) {
 		int packet_blobs = result / sizeof(surface_blob);
 
 		for (int i = 0; i < packet_blobs; i++) {
-			if ((inblob[i].action==2) && (inblob[i].blob_id>max_blob_id)) {
+			if ((inblob[i].action==2) && ((inblob[i].blob_id>max_blob_id) || (inblob[i].blob_id-max_blob_id<0))) {
 				inblob[i].action=1;
 				max_blob_id = inblob[i].blob_id;
-				if (max_blob_id==65535) max_blob_id=0;
 			}
 			outblob[current++] = inblob[i];
 		}

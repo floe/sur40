@@ -434,11 +434,12 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
 	int wide, major, minor;
 	int bb_size_x, bb_size_y, pos_x, pos_y, ctr_x, ctr_y, slotnum;
+	int blob_id = le16_to_cpu(blob->blob_id);
 
 	if (blob->type != SUR40_TOUCH)
 		return;
 
-	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
+	slotnum = input_mt_get_slot_by_key(input, blob_id);
 	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
 		return;
 
@@ -539,10 +540,9 @@ static void sur40_poll(struct input_polled_dev *polldev)
 			need_blobs--;
 			dev_dbg(sur40->dev, "processing blob\n");
 
-			if ((inblob[i].action==2) && (inblob[i].blob_id>max_blob_id)) {
+			if ((inblob[i].action==2) && ((inblob[i].blob_id>max_blob_id) || (inblob[i].blob_id-max_blob_id<1))) {
 				inblob[i].action=1;
 				max_blob_id=inblob[i].blob_id;
-				if(max_blob_id==65535) max_blob_id=0;
 			}
 
 			sur40_report_blob(&(inblob[i]), input);

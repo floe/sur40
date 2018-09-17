@@ -29,7 +29,8 @@ int main( int argc, char* argv[] ) {
 		if (result <= 0) continue;
 		printf("%d blobs\n",result);
 		for (int i = 0; i < result; i++)
-			printf("type: %d    x: %d y: %d size: %d\n",blob[i].type,blob[i].pos_x,blob[i].pos_y,blob[i].area);
+			printf("id: %d type: %d action: %d  x: %d y: %d size: %d\n",blob[i].blob_id,blob[i].type,blob[i].action,blob[i].pos_x,blob[i].pos_y,blob[i].area);
+
 		if ((frame++ % 60) == 0) {
 			printf("status 0x%08x\n",surface_get_status(s40));
 			//surface_get_sensors(s40, NULL);
