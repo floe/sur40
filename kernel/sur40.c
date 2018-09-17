@@ -540,7 +540,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 			need_blobs--;
 			dev_dbg(sur40->dev, "processing blob\n");
 
-			if ((inblob[i].action==2) && ((inblob[i].blob_id>max_blob_id) || (inblob[i].blob_id-max_blob_id<1))) {
+			if ((inblob[i].action==2) && ((inblob[i].blob_id>max_blob_id) || (inblob[i].blob_id-max_blob_id<0))) {
 				inblob[i].action=1;
 				max_blob_id=inblob[i].blob_id;
 			}
