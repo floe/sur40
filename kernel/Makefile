@@ -18,7 +18,7 @@ PWD        := $(shell pwd)
 override install_targets := $(srcs:%.c=install_%)
 
 default:
-	$(MAKE) -C $(BUILDDIR) SUBDIRS=$(PWD) "obj-m=$(obj-m)" modules
+	$(MAKE) -C $(BUILDDIR) M=$(PWD) modules
 
 .PHONY: default install all clean help $(install_targets)
 
