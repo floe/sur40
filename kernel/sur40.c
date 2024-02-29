@@ -36,7 +36,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/videobuf2-v4l2.h>
-#include <media/videobuf2-dma-sg.h>
+#include <media/videobuf2-vmalloc.h>
 
 /* read 512 bytes from endpoint 0x86 -> get header + blobs */
 struct sur40_header {
@@ -530,8 +530,8 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	struct sur40_image_header *img = (void *)(sur40->bulk_in_buffer);
 	struct sur40_buffer *new_buf;
-	struct usb_sg_request sgr;
-	struct sg_table *sgt;
+	uint8_t* buffer;
+	int bufpos = 0;
 	int result, bulk_read;
 
 	if (!vb2_start_streaming_called(&sur40->queue))
@@ -579,20 +579,18 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	dev_dbg(sur40->dev, "header acquired\n");
 
-	sgt = vb2_dma_sg_plane_desc(&new_buf->vb.vb2_buf, 0);
+	buffer = vb2_plane_vaddr(&new_buf->vb.vb2_buf, 0);
 
-	result = usb_sg_init(&sgr, sur40->usbdev,
-		usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT), 0,
-		sgt->sgl, sgt->nents, sur40->pix_fmt.sizeimage, 0);
-	if (result < 0) {
-		dev_err(sur40->dev, "error %d in usb_sg_init\n", result);
-		goto err_poll;
-	}
-
-	usb_sg_wait(&sgr);
-	if (sgr.status < 0) {
-		dev_err(sur40->dev, "error %d in usb_sg_wait\n", sgr.status);
-		goto err_poll;
+	while (bufpos < sur40->pix_fmt.sizeimage) {
+		result = usb_bulk_msg(sur40->usbdev,
+			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
+			buffer+bufpos, VIDEO_PACKET_SIZE,
+			&bulk_read, 1000); // FIXME: shouldn't the read parameter be at least as large as PACKET_SIZE?
+		if (result < 0) {
+			dev_err(sur40->dev,"error %d in usb_bulk_read\n",result);
+			goto err_poll;
+		}
+		bufpos += bulk_read;
 	}
 
 	dev_dbg(sur40->dev, "image acquired\n");
@@ -602,6 +600,7 @@ static void sur40_process_video(struct sur40_state *sur40)
 		return;
 
 	/* mark as finished */
+	vb2_set_plane_payload(&new_buf->vb.vb2_buf, 0, sur40->pix_fmt.sizeimage);
 	new_buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	new_buf->vb.sequence = sur40->sequence++;
 	new_buf->vb.field = V4L2_FIELD_NONE;
@@ -1121,7 +1120,7 @@ static const struct vb2_queue sur40_queue = {
 	.io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF,
 	.buf_struct_size = sizeof(struct sur40_buffer),
 	.ops = &sur40_queue_ops,
-	.mem_ops = &vb2_dma_sg_memops,
+	.mem_ops = &vb2_vmalloc_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
 	.min_buffers_needed = 3,
 };
