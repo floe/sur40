@@ -74,7 +74,7 @@ namespace TUIO {
 	 *
 	 * @author Florian Echtler
 	 * @version 1.1.6
-*/
+	 */
 	class LIBDECL WebSockSender : public TcpSender {
 				
 	public:
@@ -90,11 +90,6 @@ namespace TUIO {
 		 * @param  port	the listening WebSocket port number
 		 */
 		WebSockSender(int port);	
-		
-		/**
-		 * The destructor closes the socket. 
-		 */
-		virtual ~WebSockSender() {}
 		
 		/**
 		 * This method delivers the provided OSC data

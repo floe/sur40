@@ -152,10 +152,6 @@ int main(int argc, char* argv[])
 	} else tcp_sender = new TcpSender(3333);
 	server->addOscSender(tcp_sender);
 
-	// add an additional TUIO/FLC sender
-	OscSender *flash_sender = new FlashSender();
-	server->addOscSender(flash_sender);
-
 	// add an additional WebSocket sender
 	WebSockSender *websock_sender = new WebSockSender();
 	server->addOscSender(websock_sender);
