@@ -643,6 +643,26 @@ static int sur40_input_setup_events(struct input_dev *input_dev)
 	return 0;
 }
 
+/* Called when the last reference (video node or driver) is gone. */
+static void sur40_release(struct v4l2_device *v4l2)
+{
+	struct sur40_state *sur40 = container_of(v4l2, struct sur40_state, v4l2);
+
+	v4l2_ctrl_handler_free(&sur40->hdl);
+	v4l2_device_unregister(&sur40->v4l2);
+	kfree(sur40->bulk_in_buffer);
+	put_device(sur40->dev);
+	usb_put_dev(sur40->usbdev);
+	kfree(sur40);
+}
+
+static void sur40_video_device_release(struct video_device *vdev)
+{
+	struct sur40_state *sur40 = container_of(vdev, struct sur40_state, vdev);
+
+	v4l2_device_put(&sur40->v4l2);
+}
+
 /* Check candidate USB interface. */
 static int sur40_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
@@ -671,6 +691,14 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40 = kzalloc_obj(*sur40);
 	if (!sur40)
 		return -ENOMEM;
+
+	/*
+	 * Keep both devices alive until the last file handle is closed: the
+	 * USB transfers reference the USB device and vb2 unmaps its buffers
+	 * with queue.dev (the interface) possibly long after disconnect.
+	 */
+	sur40->usbdev = usb_get_dev(usbdev);
+	sur40->dev = get_device(&interface->dev);
 
 	input = input_allocate_device();
 	if (!input) {
@@ -707,8 +735,6 @@ static int sur40_probe(struct usb_interface *interface,
 
 	input_set_poll_interval(input, POLL_INTERVAL);
 
-	sur40->usbdev = usbdev;
-	sur40->dev = &interface->dev;
 	sur40->input = input;
 
 	/* use the bulk-in endpoint tested above */
@@ -721,13 +747,22 @@ static int sur40_probe(struct usb_interface *interface,
 		goto err_free_input;
 	}
 
+	/* register the input device */
+	error = input_register_device(input);
+	if (error) {
+		dev_err(&interface->dev,
+			"Unable to register polled input device.");
+		goto err_free_buffer;
+	}
+
 	/* register the video master device */
 	snprintf(sur40->v4l2.name, sizeof(sur40->v4l2.name), "%s", DRIVER_LONG);
+	sur40->v4l2.release = sur40_release;
 	error = v4l2_device_register(sur40->dev, &sur40->v4l2);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video master device.");
-		goto err_free_buffer;
+		goto err_unreg_input;
 	}
 
 	/* initialize the lock and subdevice */
@@ -774,24 +809,18 @@ static int sur40_probe(struct usb_interface *interface,
 	if (sur40->hdl.error) {
 		dev_err(&interface->dev,
 			"Unable to register video controls.");
-		v4l2_ctrl_handler_free(&sur40->hdl);
 		error = sur40->hdl.error;
-		goto err_unreg_v4l2;
+		goto err_free_ctrl;
 	}
 
+	/* the video node holds its own reference on the v4l2 device */
+	v4l2_device_get(&sur40->v4l2);
 	error = video_register_device(&sur40->vdev, VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video subdevice.");
+		v4l2_device_put(&sur40->v4l2);
 		goto err_free_ctrl;
-	}
-
-	/* register the polled input device */
-	error = input_register_device(input);
-	if (error) {
-		dev_err(&interface->dev,
-			"Unable to register polled input device.");
-		goto err_unreg_video;
 	}
 
 	/* we can register the device now, as it is ready */
@@ -800,17 +829,20 @@ static int sur40_probe(struct usb_interface *interface,
 
 	return 0;
 
-err_unreg_video:
-	video_unregister_device(&sur40->vdev);
 err_free_ctrl:
 	v4l2_ctrl_handler_free(&sur40->hdl);
 err_unreg_v4l2:
 	v4l2_device_unregister(&sur40->v4l2);
+err_unreg_input:
+	input_unregister_device(input);
+	input = NULL;
 err_free_buffer:
 	kfree(sur40->bulk_in_buffer);
 err_free_input:
 	input_free_device(input);
 err_free_dev:
+	put_device(sur40->dev);
+	usb_put_dev(sur40->usbdev);
 	kfree(sur40);
 
 	return error;
@@ -821,17 +853,21 @@ static void sur40_disconnect(struct usb_interface *interface)
 {
 	struct sur40_state *sur40 = usb_get_intfdata(interface);
 
-	input_unregister_device(sur40->input);
-
-	v4l2_ctrl_handler_free(&sur40->hdl);
+	/*
+	 * Wake up userspace waiting in DQBUF, then drop the video node
+	 * and disconnect the v4l2 device.
+	 */
+	vb2_queue_error(&sur40->queue);
 	video_unregister_device(&sur40->vdev);
-	v4l2_device_unregister(&sur40->v4l2);
+	v4l2_device_disconnect(&sur40->v4l2);
 
-	kfree(sur40->bulk_in_buffer);
-	kfree(sur40);
+	input_unregister_device(sur40->input);
 
 	usb_set_intfdata(interface, NULL);
 	dev_dbg(&interface->dev, "%s is now disconnected\n", DRIVER_DESC);
+
+	/* state is freed once the last open file handle is closed */
+	v4l2_device_put(&sur40->v4l2);
 }
 
 /*
@@ -1169,7 +1205,7 @@ static const struct video_device sur40_video_device = {
 	.name = DRIVER_LONG,
 	.fops = &sur40_video_fops,
 	.ioctl_ops = &sur40_video_ioctl_ops,
-	.release = video_device_release_empty,
+	.release = sur40_video_device_release,
 	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
 		       V4L2_CAP_READWRITE | V4L2_CAP_STREAMING,
 };
