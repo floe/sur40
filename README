@@ -3,7 +3,15 @@ surface-2.0
 
 Open-source driver for Microsoft/Samsung SUR40 (formerly also known as Surface 2.0 or MS PixelSense).
 
-The touchscreen functionality has been included in the Linux kernel since v3.13. The extended kernel driver with video functionality has been included in the official Linux kernel v4.1. This repository currently contains a standalone version of the driver as included in kernel v4.10.
+The touchscreen functionality has been included in the Linux kernel since v3.13. The extended kernel driver with video functionality has been included in the official Linux kernel v4.1.
+
+This repository contains a standalone version of the driver for Linux 5.3 and newer, which differs from the in-tree module in a few ways:
+
+* Touch and video data are fetched with asynchronous USB transfers instead of a 1 ms polling loop, so the driver no longer depends on a realtime kernel for stable frame rates and touch latency. Video frames are DMA'd directly into the V4L2 buffers.
+* Video streaming works without an open input device (e.g. headless), and dropped frames no longer desynchronise the video stream.
+* By default the sensor image is exposed like in the in-tree driver, as a touch device on `/dev/v4l-touchX` with `V4L2_TCH_FMT_TU08` as default format. Load the module with `video_node=1` to expose it as a regular camera on `/dev/videoX` with `V4L2_PIX_FMT_GREY` as the default format instead, so ffmpeg, GStreamer, reacTIVision etc. can use it directly (e.g. `echo "options sur40 video_node=1" | sudo tee /etc/modprobe.d/sur40.conf`).
+
+Build and install with `make -C kernel && sudo make -C kernel install`, or register it with DKMS (`sudo dkms add kernel && sudo dkms install sur40/2.0`) so it is rebuilt automatically on kernel upgrades. The module is installed to `/lib/modules/$(uname -r)/updates` and takes precedence over the in-tree `sur40` module.
 
 If you want to use the video feature with an older kernel, the `backport-3.16` branch contains a functionally identical version of the kernel module which has been tested with v3.16.
 
