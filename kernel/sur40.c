@@ -15,6 +15,11 @@
  *
  * and from the v4l2-pci-skeleton driver,
  * Copyright (c) Copyright 2014 Cisco Systems, Inc.
+ *
+ * Standalone version: touch and video data are retrieved with asynchronous
+ * URBs that are kept queued on the bulk IN endpoints, so the host controller
+ * does the work and no periodic polling is required. Video frames are
+ * DMA'd directly into the videobuf2 buffers via scatter-gather URBs.
  */
 
 #include <linux/kernel.h>
@@ -23,8 +28,9 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/completion.h>
-#include <linux/uaccess.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/scatterlist.h>
 #include <linux/usb.h>
 #include <linux/printk.h>
 #include <linux/input.h>
@@ -125,8 +131,14 @@ struct sur40_image_header {
 #define VIDEO_HEADER_MAGIC 0x46425553
 #define VIDEO_PACKET_SIZE  16384
 
-/* polling interval (ms) */
-#define POLL_INTERVAL 1
+/* number of URBs kept queued on the touch endpoint */
+#define SUR40_TOUCH_URBS 8
+
+/* size of the scratch buffer used to discard video data */
+#define SUR40_DRAIN_SIZE (64 * 1024)
+
+/* upper bound for a plausible frame size announced by the device */
+#define SUR40_MAX_FRAME_SIZE (4 * SENSOR_RES_X * SENSOR_RES_Y)
 
 /* maximum number of contacts */
 #define MAX_CONTACTS 52
@@ -219,9 +231,36 @@ struct sur40_state {
 	spinlock_t qlock;
 	u32 sequence;
 
-	struct sur40_data *bulk_in_buffer;
-	size_t bulk_in_size;
-	u8 bulk_in_epaddr;
+	/*
+	 * Touch pipeline: SUR40_TOUCH_URBS bulk URBs kept queued on the touch
+	 * endpoint. It runs while the input device is open or video is
+	 * streaming (the device interleaves both streams, so the touch
+	 * endpoint has to be drained in either case). need_blobs is only
+	 * touched from the (serialised) completion handlers of that endpoint.
+	 */
+	struct mutex pipe_lock;
+	unsigned int users;
+	struct urb *touch_urbs[SUR40_TOUCH_URBS];
+	size_t touch_pkt_size;
+	int need_blobs;
+
+	/*
+	 * Video pipeline: a header URB waits for the 20 byte frame header,
+	 * then either a scatter-gather URB DMAs the image straight into the
+	 * next vb2 buffer or, if none is available, the frame is discarded via
+	 * the drain URB. All three share one endpoint, so only one of them is
+	 * in flight at any time and their completions are serialised.
+	 */
+	struct urb *video_hdr_urb;
+	struct urb *video_frame_urb;
+	struct urb *video_drain_urb;
+	void *video_drain_buf;
+	size_t video_pkt_size;
+	size_t drain_remaining;      /* 0 = resync: hunt for the next header */
+	struct sur40_buffer *cur_buf;
+	unsigned long frames_dropped;
+
+	bool disconnected;
 	u8 vsvideo;
 
 	char phys[64];
@@ -235,8 +274,9 @@ struct sur40_buffer {
 /* forward declarations */
 static const struct video_device sur40_video_device;
 static const struct vb2_queue sur40_queue;
-static void sur40_process_video(struct sur40_state *sur40);
 static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
+static void sur40_video_submit_hdr(struct sur40_state *sur40);
+static void sur40_video_submit_drain(struct sur40_state *sur40, size_t count);
 
 static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
 	.s_ctrl = sur40_s_ctrl,
@@ -336,7 +376,7 @@ static void sur40_set_irlevel(struct sur40_state *handle, u8 value)
 		sur40_poke(handle, 0x08+(2*i), value);
 }
 
-/* Initialization routine, called from sur40_open */
+/* Initialization routine, called when the first consumer shows up */
 static int sur40_init(struct sur40_state *dev)
 {
 	int result;
@@ -385,29 +425,37 @@ error:
 }
 
 /*
- * Callback routines from input_dev
+ * URB helpers
  */
 
-/* Enable the device, polling will now start. */
-static int sur40_open(struct input_dev *input)
+/* true if the URB was cancelled or the device went away: do not resubmit */
+static bool sur40_urb_dead(struct urb *urb)
 {
-	struct sur40_state *sur40 = input_get_drvdata(input);
-
-	dev_dbg(sur40->dev, "open\n");
-	return sur40_init(sur40);
+	switch (urb->status) {
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+	case -ENODEV:
+		return true;
+	default:
+		return false;
+	}
 }
 
-/* Disable device, polling has stopped. */
-static void sur40_close(struct input_dev *input)
+/* resubmit from a completion handler; -EPERM means we are being stopped */
+static void sur40_resubmit(struct sur40_state *sur40, struct urb *urb,
+			   const char *what)
 {
-	struct sur40_state *sur40 = input_get_drvdata(input);
+	int ret = usb_submit_urb(urb, GFP_ATOMIC);
 
-	dev_dbg(sur40->dev, "close\n");
-	/*
-	 * There is no known way to stop the device, so we simply
-	 * stop polling.
-	 */
+	if (ret && ret != -EPERM && ret != -ENODEV)
+		dev_err_ratelimited(sur40->dev,
+			"failed to resubmit %s urb: %d\n", what, ret);
 }
+
+/*
+ * Touch pipeline
+ */
 
 /*
  * This function is called when a whole contact has been processed,
@@ -421,7 +469,7 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	if (blob->type != SUR40_TOUCH)
 		return;
 
-	slotnum = input_mt_get_slot_by_key(input, le16_to_cpu(blob->blob_id));
+	slotnum = input_mt_get_slot_by_key(input, blob->blob_id);
 	if (slotnum < 0 || slotnum >= MAX_CONTACTS)
 		return;
 
@@ -451,162 +499,391 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
 }
 
-/* core function: poll for new input data */
-static void sur40_poll(struct input_dev *input)
+/* core function: one touch packet has arrived */
+static void sur40_touch_complete(struct urb *urb)
 {
-	struct sur40_state *sur40 = input_get_drvdata(input);
-	int result, bulk_read, need_blobs, packet_blobs, i;
-	struct sur40_header *header = &sur40->bulk_in_buffer->header;
-	struct sur40_blob *inblob = &sur40->bulk_in_buffer->blobs[0];
+	struct sur40_state *sur40 = urb->context;
+	struct sur40_data *data = urb->transfer_buffer;
+	struct input_dev *input = sur40->input;
+	unsigned int len = urb->actual_length;
+	int packet_blobs, i;
 
-	dev_dbg(sur40->dev, "poll\n");
-
-	need_blobs = -1;
-
-	do {
-
-		/* perform a blocking bulk read to get data from the device */
-		result = usb_bulk_msg(sur40->usbdev,
-			usb_rcvbulkpipe(sur40->usbdev, sur40->bulk_in_epaddr),
-			sur40->bulk_in_buffer, sur40->bulk_in_size,
-			&bulk_read, 1000);
-
-		dev_dbg(sur40->dev, "received %d bytes\n", bulk_read);
-
-		if (result < 0) {
-			dev_err(sur40->dev, "error in usb_bulk_read\n");
-			return;
-		}
-
-		result = bulk_read - sizeof(struct sur40_header);
-
-		if (result % sizeof(struct sur40_blob) != 0) {
-			dev_err(sur40->dev, "transfer size mismatch\n");
-			return;
-		}
-
-		/* first packet? */
-		if (need_blobs == -1) {
-			need_blobs = le16_to_cpu(header->count);
-			dev_dbg(sur40->dev, "need %d blobs\n", need_blobs);
-			/* packet_id = le32_to_cpu(header->packet_id); */
-		}
-
-		/*
-		 * Sanity check. when video data is also being retrieved, the
-		 * packet ID will usually increase in the middle of a series
-		 * instead of at the end. However, the data is still consistent,
-		 * so the packet ID is probably just valid for the first packet
-		 * in a series.
-
-		if (packet_id != le32_to_cpu(header->packet_id))
-			dev_dbg(sur40->dev, "packet ID mismatch\n");
-		 */
-
-		packet_blobs = result / sizeof(struct sur40_blob);
-		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
-
-		/* packets always contain at least 4 blobs, even if empty */
-		if (packet_blobs > need_blobs)
-			packet_blobs = need_blobs;
-
-		for (i = 0; i < packet_blobs; i++) {
-			need_blobs--;
-			dev_dbg(sur40->dev, "processing blob\n");
-			sur40_report_blob(&(inblob[i]), input);
-		}
-
-	} while (need_blobs > 0);
-
-	input_mt_sync_frame(input);
-	input_sync(input);
-
-	sur40_process_video(sur40);
-}
-
-/* deal with video data */
-static void sur40_process_video(struct sur40_state *sur40)
-{
-
-	struct sur40_image_header *img = (void *)(sur40->bulk_in_buffer);
-	struct sur40_buffer *new_buf;
-	struct usb_sg_request sgr;
-	struct sg_table *sgt;
-	int result, bulk_read;
-
-	if (!vb2_start_streaming_called(&sur40->queue))
+	if (sur40_urb_dead(urb))
 		return;
 
-	/* get a new buffer from the list */
-	scoped_guard(spinlock, &sur40->qlock) {
-		if (list_empty(&sur40->buf_list)) {
-			dev_dbg(sur40->dev, "buffer queue empty\n");
-			return;
+	if (urb->status) {
+		dev_dbg_ratelimited(sur40->dev, "touch urb status %d\n",
+				    urb->status);
+		sur40->need_blobs = -1;
+		goto resubmit;
+	}
+
+	dev_dbg(sur40->dev, "received %u bytes\n", len);
+
+	if (len < sizeof(struct sur40_header) ||
+	    (len - sizeof(struct sur40_header)) % sizeof(struct sur40_blob)) {
+		dev_err_ratelimited(sur40->dev,
+				    "transfer size mismatch (%u bytes)\n", len);
+		sur40->need_blobs = -1;
+		goto resubmit;
+	}
+
+	packet_blobs = (len - sizeof(struct sur40_header)) /
+		       sizeof(struct sur40_blob);
+	dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
+
+	/*
+	 * The first packet of a frame carries the total blob count, the
+	 * following packets (if any) have count == 0. The packet ID is only
+	 * reliable for the first packet, so it is not checked.
+	 */
+	if (sur40->need_blobs < 0) {
+		sur40->need_blobs = le16_to_cpu(data->header.count);
+		dev_dbg(sur40->dev, "need %d blobs\n", sur40->need_blobs);
+	}
+
+	/* packets always contain at least 4 blobs, even if empty */
+	if (packet_blobs > sur40->need_blobs)
+		packet_blobs = sur40->need_blobs;
+
+	for (i = 0; i < packet_blobs; i++)
+		sur40_report_blob(&data->blobs[i], input);
+	sur40->need_blobs -= packet_blobs;
+
+	if (sur40->need_blobs <= 0) {
+		input_mt_sync_frame(input);
+		input_sync(input);
+		sur40->need_blobs = -1;
+	}
+
+resubmit:
+	sur40_resubmit(sur40, urb, "touch");
+}
+
+/* poison all touch URBs: waits for in-flight ones and blocks resubmission */
+static void sur40_touch_stop(struct sur40_state *sur40)
+{
+	int i;
+
+	if (sur40->disconnected)
+		return;
+
+	for (i = 0; i < SUR40_TOUCH_URBS; i++)
+		usb_poison_urb(sur40->touch_urbs[i]);
+}
+
+static int sur40_touch_start(struct sur40_state *sur40)
+{
+	int i, ret;
+
+	sur40->need_blobs = -1;
+
+	for (i = 0; i < SUR40_TOUCH_URBS; i++)
+		usb_unpoison_urb(sur40->touch_urbs[i]);
+
+	for (i = 0; i < SUR40_TOUCH_URBS; i++) {
+		ret = usb_submit_urb(sur40->touch_urbs[i], GFP_KERNEL);
+		if (ret) {
+			dev_err(sur40->dev,
+				"failed to submit touch urb %d: %d\n", i, ret);
+			sur40_touch_stop(sur40);
+			return ret;
 		}
-		new_buf = list_first_entry(&sur40->buf_list,
-					   struct sur40_buffer, list);
-		list_del(&new_buf->list);
 	}
 
-	dev_dbg(sur40->dev, "buffer acquired\n");
+	return 0;
+}
 
-	/* retrieve data via bulk read */
-	result = usb_bulk_msg(sur40->usbdev,
-			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
-			sur40->bulk_in_buffer, sur40->bulk_in_size,
-			&bulk_read, 1000);
+/*
+ * The touch pipeline is shared by the input device and the video queue.
+ * Neither sur40->lock nor input->mutex is used here, because the callers
+ * hold one or the other.
+ */
+static int sur40_pipeline_get(struct sur40_state *sur40)
+{
+	int ret = 0;
 
-	if (result < 0) {
-		dev_err(sur40->dev, "error in usb_bulk_read\n");
-		goto err_poll;
+	mutex_lock(&sur40->pipe_lock);
+	if (sur40->users == 0) {
+		ret = sur40_init(sur40);
+		if (!ret)
+			ret = sur40_touch_start(sur40);
 	}
+	if (!ret)
+		sur40->users++;
+	mutex_unlock(&sur40->pipe_lock);
 
-	if (bulk_read != sizeof(struct sur40_image_header)) {
-		dev_err(sur40->dev, "received %d bytes (%zd expected)\n",
-			bulk_read, sizeof(struct sur40_image_header));
-		goto err_poll;
+	return ret;
+}
+
+static void sur40_pipeline_put(struct sur40_state *sur40)
+{
+	mutex_lock(&sur40->pipe_lock);
+	if (!WARN_ON(sur40->users == 0) && --sur40->users == 0)
+		sur40_touch_stop(sur40);
+	mutex_unlock(&sur40->pipe_lock);
+}
+
+/*
+ * Callback routines from input_dev
+ */
+
+/* Enable the device, touch URBs will now be queued. */
+static int sur40_open(struct input_dev *input)
+{
+	struct sur40_state *sur40 = input_get_drvdata(input);
+
+	dev_dbg(sur40->dev, "open\n");
+	return sur40_pipeline_get(sur40);
+}
+
+/* Disable device. */
+static void sur40_close(struct input_dev *input)
+{
+	struct sur40_state *sur40 = input_get_drvdata(input);
+
+	dev_dbg(sur40->dev, "close\n");
+	/*
+	 * There is no known way to stop the device, so we simply
+	 * stop reading from it (unless video is still streaming).
+	 */
+	sur40_pipeline_put(sur40);
+}
+
+/*
+ * Video pipeline
+ */
+
+static struct sur40_buffer *sur40_video_pop_buffer(struct sur40_state *sur40)
+{
+	struct sur40_buffer *buf = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sur40->qlock, flags);
+	if (!list_empty(&sur40->buf_list)) {
+		buf = list_first_entry(&sur40->buf_list, struct sur40_buffer,
+				       list);
+		list_del(&buf->list);
 	}
+	spin_unlock_irqrestore(&sur40->qlock, flags);
+
+	return buf;
+}
+
+static void sur40_video_submit_hdr(struct sur40_state *sur40)
+{
+	sur40_resubmit(sur40, sur40->video_hdr_urb, "video header");
+}
+
+/*
+ * Discard @count bytes of video data (count == 0: unknown alignment, keep
+ * reading until a valid frame header shows up as a short packet).
+ */
+static void sur40_video_submit_drain(struct sur40_state *sur40, size_t count)
+{
+	struct urb *urb = sur40->video_drain_urb;
+
+	sur40->drain_remaining = count;
+	urb->transfer_buffer_length = count ? min_t(size_t, count,
+		SUR40_DRAIN_SIZE) : SUR40_DRAIN_SIZE;
+	sur40_resubmit(sur40, urb, "video drain");
+}
+
+/* a valid-looking 20 byte header has arrived: start the frame transfer */
+static void sur40_video_handle_header(struct sur40_state *sur40,
+				      struct sur40_image_header *img)
+{
+	struct sur40_buffer *buf;
+	struct sg_table *sgt;
+	struct urb *urb = sur40->video_frame_urb;
+	u32 size = le32_to_cpu(img->size);
+	int ret;
 
 	if (le32_to_cpu(img->magic) != VIDEO_HEADER_MAGIC) {
-		dev_err(sur40->dev, "image magic mismatch\n");
-		goto err_poll;
+		dev_dbg_ratelimited(sur40->dev, "image magic mismatch\n");
+		sur40_video_submit_drain(sur40, 0);
+		return;
 	}
 
-	if (le32_to_cpu(img->size) != sur40->pix_fmt.sizeimage) {
-		dev_err(sur40->dev, "image size mismatch\n");
-		goto err_poll;
+	if (size != sur40->pix_fmt.sizeimage) {
+		dev_err_ratelimited(sur40->dev, "image size mismatch (%u)\n",
+				    size);
+		sur40_video_submit_drain(sur40,
+			size <= SUR40_MAX_FRAME_SIZE ? size : 0);
+		return;
 	}
 
 	dev_dbg(sur40->dev, "header acquired\n");
 
-	sgt = vb2_dma_sg_plane_desc(&new_buf->vb.vb2_buf, 0);
-
-	result = usb_sg_init(&sgr, sur40->usbdev,
-		usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT), 0,
-		sgt->sgl, sgt->nents, sur40->pix_fmt.sizeimage, 0);
-	if (result < 0) {
-		dev_err(sur40->dev, "error %d in usb_sg_init\n", result);
-		goto err_poll;
+	buf = sur40_video_pop_buffer(sur40);
+	if (!buf) {
+		/* userspace is too slow: drop this frame but stay in sync */
+		sur40->frames_dropped++;
+		dev_dbg_ratelimited(sur40->dev, "buffer queue empty, %lu frames dropped\n",
+				    sur40->frames_dropped);
+		sur40_video_submit_drain(sur40, size);
+		return;
 	}
 
-	usb_sg_wait(&sgr);
-	if (sgr.status < 0) {
-		dev_err(sur40->dev, "error %d in usb_sg_wait\n", sgr.status);
-		goto err_poll;
+	/*
+	 * DMA straight into the vb2 buffer. The host controller maps the
+	 * scatterlist itself, so hand it the full (unmapped) entry count.
+	 */
+	sgt = vb2_dma_sg_plane_desc(&buf->vb.vb2_buf, 0);
+	usb_fill_bulk_urb(urb, sur40->usbdev,
+		usb_rcvbulkpipe(sur40->usbdev,
+				VIDEO_ENDPOINT & USB_ENDPOINT_NUMBER_MASK),
+		NULL, size, urb->complete, sur40);
+	urb->sg = sgt->sgl;
+	urb->num_sgs = sgt->orig_nents;
+
+	sur40->cur_buf = buf;
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ret) {
+		if (ret != -EPERM && ret != -ENODEV)
+			dev_err_ratelimited(sur40->dev,
+				"failed to submit frame urb: %d\n", ret);
+		sur40->cur_buf = NULL;
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+	}
+}
+
+static void sur40_video_hdr_complete(struct urb *urb)
+{
+	struct sur40_state *sur40 = urb->context;
+
+	if (sur40_urb_dead(urb))
+		return;
+
+	if (urb->status) {
+		dev_dbg_ratelimited(sur40->dev, "video header urb status %d\n",
+				    urb->status);
+		sur40_video_submit_hdr(sur40);
+		return;
 	}
 
-	dev_dbg(sur40->dev, "image acquired\n");
+	if (urb->actual_length != sizeof(struct sur40_image_header)) {
+		/* not at a frame boundary: skip ahead to the next header */
+		dev_dbg_ratelimited(sur40->dev, "received %u bytes (%zu expected), resyncing\n",
+				    urb->actual_length,
+				    sizeof(struct sur40_image_header));
+		sur40_video_submit_drain(sur40, 0);
+		return;
+	}
 
-	/* mark as finished */
-	new_buf->vb.vb2_buf.timestamp = ktime_get_ns();
-	new_buf->vb.sequence = sur40->sequence++;
-	new_buf->vb.field = V4L2_FIELD_NONE;
-	vb2_buffer_done(&new_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-	dev_dbg(sur40->dev, "buffer marked done\n");
-	return;
+	sur40_video_handle_header(sur40, urb->transfer_buffer);
+}
 
-err_poll:
-	vb2_buffer_done(&new_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+static void sur40_video_frame_complete(struct urb *urb)
+{
+	struct sur40_state *sur40 = urb->context;
+	struct sur40_buffer *buf;
+	enum vb2_buffer_state state = VB2_BUF_STATE_DONE;
+
+	/* cancelled: stop_streaming() takes care of cur_buf */
+	if (sur40_urb_dead(urb))
+		return;
+
+	buf = sur40->cur_buf;
+	sur40->cur_buf = NULL;
+	if (WARN_ON(!buf))
+		goto next;
+
+	if (urb->status || urb->actual_length != urb->transfer_buffer_length) {
+		dev_dbg_ratelimited(sur40->dev, "frame urb status %d, %u/%u bytes\n",
+				    urb->status, urb->actual_length,
+				    urb->transfer_buffer_length);
+		state = VB2_BUF_STATE_ERROR;
+	} else {
+		dev_dbg(sur40->dev, "image acquired\n");
+		buf->vb.vb2_buf.timestamp = ktime_get_ns();
+		buf->vb.sequence = sur40->sequence++;
+		buf->vb.field = V4L2_FIELD_NONE;
+	}
+
+	vb2_buffer_done(&buf->vb.vb2_buf, state);
+
+next:
+	sur40_video_submit_hdr(sur40);
+}
+
+static void sur40_video_drain_complete(struct urb *urb)
+{
+	struct sur40_state *sur40 = urb->context;
+	unsigned int len = urb->actual_length;
+
+	if (sur40_urb_dead(urb))
+		return;
+
+	if (urb->status) {
+		dev_dbg_ratelimited(sur40->dev, "video drain urb status %d\n",
+				    urb->status);
+		sur40_video_submit_drain(sur40, 0);
+		return;
+	}
+
+	if (sur40->drain_remaining == 0) {
+		/*
+		 * Resync mode: the header is sent as a 20 byte short packet,
+		 * which ends the transfer. It may be preceded by a number of
+		 * full packets of the previous frame within the same URB.
+		 */
+		if (len >= sizeof(struct sur40_image_header) &&
+		    (len - sizeof(struct sur40_image_header)) %
+		    sur40->video_pkt_size == 0) {
+			sur40_video_handle_header(sur40, urb->transfer_buffer +
+				len - sizeof(struct sur40_image_header));
+			return;
+		}
+		sur40_video_submit_drain(sur40, 0);
+		return;
+	}
+
+	if (len >= sur40->drain_remaining) {
+		/* frame fully discarded, wait for the next header */
+		sur40->drain_remaining = 0;
+		sur40_video_submit_hdr(sur40);
+		return;
+	}
+
+	if (len < urb->transfer_buffer_length) {
+		/* short packet in the middle of a frame: alignment is lost */
+		dev_dbg_ratelimited(sur40->dev, "short drain packet, resyncing\n");
+		sur40_video_submit_drain(sur40, 0);
+		return;
+	}
+
+	sur40_video_submit_drain(sur40, sur40->drain_remaining - len);
+}
+
+/* poison all video URBs: waits for in-flight ones and blocks resubmission */
+static void sur40_video_stop(struct sur40_state *sur40)
+{
+	if (sur40->disconnected)
+		return;
+
+	usb_poison_urb(sur40->video_hdr_urb);
+	usb_poison_urb(sur40->video_frame_urb);
+	usb_poison_urb(sur40->video_drain_urb);
+}
+
+static int sur40_video_start(struct sur40_state *sur40)
+{
+	int ret;
+
+	sur40->drain_remaining = 0;
+	usb_unpoison_urb(sur40->video_hdr_urb);
+	usb_unpoison_urb(sur40->video_frame_urb);
+	usb_unpoison_urb(sur40->video_drain_urb);
+
+	ret = usb_submit_urb(sur40->video_hdr_urb, GFP_KERNEL);
+	if (ret) {
+		dev_err(sur40->dev, "failed to submit video header urb: %d\n",
+			ret);
+		sur40_video_stop(sur40);
+	}
+
+	return ret;
 }
 
 /* Initialize input device parameters. */
@@ -643,6 +920,93 @@ static int sur40_input_setup_events(struct input_dev *input_dev)
 	return 0;
 }
 
+/*
+ * URB allocation / release. All URBs start out poisoned so that the
+ * start/stop helpers can rely on a balanced unpoison/poison sequence.
+ */
+static void sur40_free_urbs(struct sur40_state *sur40)
+{
+	int i;
+
+	for (i = 0; i < SUR40_TOUCH_URBS; i++) {
+		if (sur40->touch_urbs[i])
+			kfree(sur40->touch_urbs[i]->transfer_buffer);
+		usb_free_urb(sur40->touch_urbs[i]);
+	}
+	if (sur40->video_hdr_urb)
+		kfree(sur40->video_hdr_urb->transfer_buffer);
+	usb_free_urb(sur40->video_hdr_urb);
+	usb_free_urb(sur40->video_frame_urb);
+	usb_free_urb(sur40->video_drain_urb);
+	kfree(sur40->video_drain_buf);
+}
+
+static struct urb *sur40_alloc_bulk_urb(struct sur40_state *sur40, u8 epaddr,
+					size_t size, usb_complete_t complete)
+{
+	struct urb *urb;
+	void *buf = NULL;
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return NULL;
+
+	if (size) {
+		buf = kmalloc(size, GFP_KERNEL);
+		if (!buf) {
+			usb_free_urb(urb);
+			return NULL;
+		}
+	}
+
+	usb_fill_bulk_urb(urb, sur40->usbdev,
+		usb_rcvbulkpipe(sur40->usbdev, epaddr & USB_ENDPOINT_NUMBER_MASK),
+		buf, size, complete, sur40);
+	usb_poison_urb(urb);
+
+	return urb;
+}
+
+static int sur40_alloc_urbs(struct sur40_state *sur40)
+{
+	int i;
+
+	for (i = 0; i < SUR40_TOUCH_URBS; i++) {
+		sur40->touch_urbs[i] = sur40_alloc_bulk_urb(sur40,
+			TOUCH_ENDPOINT, sur40->touch_pkt_size,
+			sur40_touch_complete);
+		if (!sur40->touch_urbs[i])
+			goto err;
+	}
+
+	sur40->video_hdr_urb = sur40_alloc_bulk_urb(sur40, VIDEO_ENDPOINT,
+		sur40->video_pkt_size, sur40_video_hdr_complete);
+	if (!sur40->video_hdr_urb)
+		goto err;
+
+	/* transfer buffer and length are filled in per frame */
+	sur40->video_frame_urb = sur40_alloc_bulk_urb(sur40, VIDEO_ENDPOINT,
+		0, sur40_video_frame_complete);
+	if (!sur40->video_frame_urb)
+		goto err;
+
+	sur40->video_drain_buf = kmalloc(SUR40_DRAIN_SIZE, GFP_KERNEL);
+	if (!sur40->video_drain_buf)
+		goto err;
+
+	sur40->video_drain_urb = sur40_alloc_bulk_urb(sur40, VIDEO_ENDPOINT,
+		0, sur40_video_drain_complete);
+	if (!sur40->video_drain_urb)
+		goto err;
+	sur40->video_drain_urb->transfer_buffer = sur40->video_drain_buf;
+
+	return 0;
+
+err:
+	sur40_free_urbs(sur40);
+	return -ENOMEM;
+}
+
 /* Called when the last reference (video node or driver) is gone. */
 static void sur40_release(struct v4l2_device *v4l2)
 {
@@ -650,7 +1014,7 @@ static void sur40_release(struct v4l2_device *v4l2)
 
 	v4l2_ctrl_handler_free(&sur40->hdl);
 	v4l2_device_unregister(&sur40->v4l2);
-	kfree(sur40->bulk_in_buffer);
+	sur40_free_urbs(sur40);
 	put_device(sur40->dev);
 	usb_put_dev(sur40->usbdev);
 	kfree(sur40);
@@ -682,9 +1046,15 @@ static int sur40_probe(struct usb_interface *interface,
 	if (iface_desc->desc.bNumEndpoints < 5)
 		return -ENODEV;
 
-	/* Use endpoint #4 (0x86). */
+	/* Use endpoint #4 (0x86) for touch data ... */
 	endpoint = &iface_desc->endpoint[4].desc;
-	if (endpoint->bEndpointAddress != TOUCH_ENDPOINT)
+	if (endpoint->bEndpointAddress != TOUCH_ENDPOINT ||
+	    !usb_endpoint_is_bulk_in(endpoint))
+		return -ENODEV;
+
+	/* ... and endpoint #2 (0x82) for video data. */
+	if (iface_desc->endpoint[2].desc.bEndpointAddress != VIDEO_ENDPOINT ||
+	    !usb_endpoint_is_bulk_in(&iface_desc->endpoint[2].desc))
 		return -ENODEV;
 
 	/* Allocate memory for our device state and initialize it. */
@@ -694,22 +1064,32 @@ static int sur40_probe(struct usb_interface *interface,
 
 	/*
 	 * Keep both devices alive until the last file handle is closed: the
-	 * USB transfers reference the USB device and vb2 unmaps its buffers
-	 * with queue.dev (the interface) possibly long after disconnect.
+	 * URBs reference the USB device and vb2 unmaps its buffers with
+	 * queue.dev (the interface) possibly long after disconnect.
 	 */
 	sur40->usbdev = usb_get_dev(usbdev);
 	sur40->dev = get_device(&interface->dev);
-
-	input = input_allocate_device();
-	if (!input) {
-		error = -ENOMEM;
-		goto err_free_dev;
-	}
+	sur40->touch_pkt_size = usb_endpoint_maxp(endpoint);
+	sur40->video_pkt_size =
+		usb_endpoint_maxp(&iface_desc->endpoint[2].desc);
 
 	/* initialize locks/lists */
 	INIT_LIST_HEAD(&sur40->buf_list);
 	spin_lock_init(&sur40->qlock);
 	mutex_init(&sur40->lock);
+	mutex_init(&sur40->pipe_lock);
+
+	error = sur40_alloc_urbs(sur40);
+	if (error) {
+		dev_err(&interface->dev, "Unable to allocate URBs.");
+		goto err_free_dev;
+	}
+
+	input = input_allocate_device();
+	if (!input) {
+		error = -ENOMEM;
+		goto err_free_urbs;
+	}
 
 	/* Set up regular input device structure */
 	input->name = DRIVER_LONG;
@@ -727,32 +1107,13 @@ static int sur40_probe(struct usb_interface *interface,
 		goto err_free_input;
 
 	input_set_drvdata(input, sur40);
-	error = input_setup_polling(input, sur40_poll);
-	if (error) {
-		dev_err(&interface->dev, "failed to set up polling");
-		goto err_free_input;
-	}
-
-	input_set_poll_interval(input, POLL_INTERVAL);
-
 	sur40->input = input;
-
-	/* use the bulk-in endpoint tested above */
-	sur40->bulk_in_size = usb_endpoint_maxp(endpoint);
-	sur40->bulk_in_epaddr = endpoint->bEndpointAddress;
-	sur40->bulk_in_buffer = kmalloc(sur40->bulk_in_size, GFP_KERNEL);
-	if (!sur40->bulk_in_buffer) {
-		dev_err(&interface->dev, "Unable to allocate input buffer.");
-		error = -ENOMEM;
-		goto err_free_input;
-	}
 
 	/* register the input device */
 	error = input_register_device(input);
 	if (error) {
-		dev_err(&interface->dev,
-			"Unable to register polled input device.");
-		goto err_free_buffer;
+		dev_err(&interface->dev, "Unable to register input device.");
+		goto err_free_input;
 	}
 
 	/* register the video master device */
@@ -836,10 +1197,10 @@ err_unreg_v4l2:
 err_unreg_input:
 	input_unregister_device(input);
 	input = NULL;
-err_free_buffer:
-	kfree(sur40->bulk_in_buffer);
 err_free_input:
 	input_free_device(input);
+err_free_urbs:
+	sur40_free_urbs(sur40);
 err_free_dev:
 	put_device(sur40->dev);
 	usb_put_dev(sur40->usbdev);
@@ -852,6 +1213,19 @@ err_free_dev:
 static void sur40_disconnect(struct usb_interface *interface)
 {
 	struct sur40_state *sur40 = usb_get_intfdata(interface);
+	int i;
+
+	/*
+	 * Kill everything that is in flight first. Afterwards the stop
+	 * helpers become no-ops (the URBs stay poisoned until they are
+	 * freed in sur40_release).
+	 */
+	for (i = 0; i < SUR40_TOUCH_URBS; i++)
+		usb_poison_urb(sur40->touch_urbs[i]);
+	usb_poison_urb(sur40->video_hdr_urb);
+	usb_poison_urb(sur40->video_frame_urb);
+	usb_poison_urb(sur40->video_drain_urb);
+	sur40->disconnected = true;
 
 	/*
 	 * Wake up userspace waiting in DQBUF, then drop the video node
@@ -871,21 +1245,16 @@ static void sur40_disconnect(struct usb_interface *interface)
 }
 
 /*
- * Setup the constraints of the queue: besides setting the number of planes
- * per buffer and the size and allocation context of each plane, it also
- * checks if sufficient buffers have been allocated. Usually 3 is a good
- * minimum number: many DMA engines need a minimum of 2 buffers in the
- * queue and you need to have another available for userspace processing.
+ * Setup the constraints of the queue: set the number of planes per
+ * buffer and the size and allocation context of each plane. The
+ * minimum buffer count is already enforced by vb2 through
+ * min_queued_buffers.
  */
 static int sur40_queue_setup(struct vb2_queue *q,
 		       unsigned int *nbuffers, unsigned int *nplanes,
 		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(q);
-	unsigned int q_num_bufs = vb2_get_num_buffers(q);
-
-	if (q_num_bufs + *nbuffers < 3)
-		*nbuffers = 3 - q_num_bufs;
 
 	if (*nplanes)
 		return sizes[0] < sur40->pix_fmt.sizeimage ? -EINVAL : 0;
@@ -922,49 +1291,82 @@ static void sur40_buffer_queue(struct vb2_buffer *vb)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vb->vb2_queue);
 	struct sur40_buffer *buf = (struct sur40_buffer *)vb;
+	unsigned long flags;
 
-	guard(spinlock)(&sur40->qlock);
+	spin_lock_irqsave(&sur40->qlock, flags);
 	list_add_tail(&buf->list, &sur40->buf_list);
+	spin_unlock_irqrestore(&sur40->qlock, flags);
 }
 
 static void return_all_buffers(struct sur40_state *sur40,
 			       enum vb2_buffer_state state)
 {
 	struct sur40_buffer *buf, *node;
+	unsigned long flags;
 
-	guard(spinlock)(&sur40->qlock);
-
+	spin_lock_irqsave(&sur40->qlock, flags);
 	list_for_each_entry_safe(buf, node, &sur40->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
+	spin_unlock_irqrestore(&sur40->qlock, flags);
 }
 
 /*
- * Start streaming. First check if the minimum number of buffers have been
- * queued. If not, then return -ENOBUFS and the vb2 framework will call
- * this function again the next time a buffer has been queued until enough
- * buffers are available to actually start the DMA engine.
+ * Start streaming: make sure the touch pipeline is running (the device
+ * interleaves both streams) and queue the first video header URB.
  */
 static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+	int ret;
+
+	ret = sur40_pipeline_get(sur40);
+	if (ret)
+		goto err;
 
 	sur40->sequence = 0;
+	sur40->frames_dropped = 0;
+	sur40->cur_buf = NULL;
+
+	ret = sur40_video_start(sur40);
+	if (ret) {
+		sur40_pipeline_put(sur40);
+		goto err;
+	}
+
 	return 0;
+
+err:
+	return_all_buffers(sur40, VB2_BUF_STATE_QUEUED);
+	return ret;
 }
 
 /*
- * Stop the DMA engine. Any remaining buffers in the DMA queue are dequeued
- * and passed on to the vb2 framework marked as STATE_ERROR.
+ * Stop streaming: cancel the video URBs (this waits for a running
+ * completion handler), then hand every buffer we still own back to vb2
+ * marked as STATE_ERROR.
  */
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
-	vb2_wait_for_all_buffers(vq);
+
+	sur40_video_stop(sur40);
+
+	if (sur40->cur_buf) {
+		vb2_buffer_done(&sur40->cur_buf->vb.vb2_buf,
+				VB2_BUF_STATE_ERROR);
+		sur40->cur_buf = NULL;
+	}
 
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
+
+	if (sur40->frames_dropped)
+		dev_dbg(&sur40->usbdev->dev, "%lu frames dropped while streaming\n",
+			sur40->frames_dropped);
+
+	sur40_pipeline_put(sur40);
 }
 
 /* V4L ioctl */
