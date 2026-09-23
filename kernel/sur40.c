@@ -191,10 +191,15 @@ static uint gain = SUR40_GAIN_DEF;
 module_param(gain, uint, 0644);
 MODULE_PARM_DESC(gain, "set initial gain"
 	SUR40_PARAM_RANGE(SUR40_GAIN_MIN, SUR40_GAIN_MAX));
+static bool video_node;
+module_param(video_node, bool, 0444);
+MODULE_PARM_DESC(video_node,
+	"register as a regular camera on /dev/videoX with V4L2_PIX_FMT_GREY "
+	"as default format instead of /dev/v4l-touchX (default: 0)");
 
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
-		.pixelformat = V4L2_TCH_FMT_TU08,
+		.pixelformat = V4L2_PIX_FMT_GREY,
 		.width  = SENSOR_RES_X / 2,
 		.height = SENSOR_RES_Y / 2,
 		.field = V4L2_FIELD_NONE,
@@ -203,7 +208,7 @@ static const struct v4l2_pix_format sur40_pix_format[] = {
 		.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
 	},
 	{
-		.pixelformat = V4L2_PIX_FMT_GREY,
+		.pixelformat = V4L2_TCH_FMT_TU08,
 		.width  = SENSOR_RES_X / 2,
 		.height = SENSOR_RES_Y / 2,
 		.field = V4L2_FIELD_NONE,
@@ -275,6 +280,7 @@ struct sur40_buffer {
 static const struct video_device sur40_video_device;
 static const struct vb2_queue sur40_queue;
 static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
+static const struct v4l2_pix_format *sur40_find_format(u32 pixelformat);
 static void sur40_video_submit_hdr(struct sur40_state *sur40);
 static void sur40_video_submit_drain(struct sur40_state *sur40, size_t count);
 
@@ -1137,11 +1143,13 @@ static int sur40_probe(struct usb_interface *interface,
 	if (error)
 		goto err_unreg_v4l2;
 
-	sur40->pix_fmt = sur40_pix_format[0];
+	sur40->pix_fmt = *sur40_find_format(0);
 	sur40->vdev = sur40_video_device;
 	sur40->vdev.v4l2_dev = &sur40->v4l2;
 	sur40->vdev.lock = &sur40->lock;
 	sur40->vdev.queue = &sur40->queue;
+	if (!video_node)
+		sur40->vdev.device_caps |= V4L2_CAP_TOUCH;
 	video_set_drvdata(&sur40->vdev, sur40);
 
 	/* initialize the control handler for 4 controls */
@@ -1176,7 +1184,8 @@ static int sur40_probe(struct usb_interface *interface,
 
 	/* the video node holds its own reference on the v4l2 device */
 	v4l2_device_get(&sur40->v4l2);
-	error = video_register_device(&sur40->vdev, VFL_TYPE_TOUCH, -1);
+	error = video_register_device(&sur40->vdev,
+		video_node ? VFL_TYPE_VIDEO : VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
 			"Unable to register video subdevice.");
@@ -1386,7 +1395,7 @@ static int sur40_vidioc_enum_input(struct file *file, void *priv,
 {
 	if (i->index != 0)
 		return -EINVAL;
-	i->type = V4L2_INPUT_TYPE_TOUCH;
+	i->type = video_node ? V4L2_INPUT_TYPE_CAMERA : V4L2_INPUT_TYPE_TOUCH;
 	i->std = V4L2_STD_UNKNOWN;
 	strscpy(i->name, "In-Cell Sensor", sizeof(i->name));
 	i->capabilities = 0;
@@ -1404,19 +1413,27 @@ static int sur40_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
+/*
+ * Look up a pixel format; anything unknown falls back to the default for the
+ * current mode: GREY for a regular camera node, TU08 (as mainline) for the
+ * touch node.
+ */
+static const struct v4l2_pix_format *sur40_find_format(u32 pixelformat)
+{
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_GREY:
+		return &sur40_pix_format[0];
+	case V4L2_TCH_FMT_TU08:
+		return &sur40_pix_format[1];
+	default:
+		return &sur40_pix_format[video_node ? 0 : 1];
+	}
+}
+
 static int sur40_vidioc_try_fmt(struct file *file, void *priv,
 			    struct v4l2_format *f)
 {
-	switch (f->fmt.pix.pixelformat) {
-	case V4L2_PIX_FMT_GREY:
-		f->fmt.pix = sur40_pix_format[1];
-		break;
-
-	default:
-		f->fmt.pix = sur40_pix_format[0];
-		break;
-	}
-
+	f->fmt.pix = *sur40_find_format(f->fmt.pix.pixelformat);
 	return 0;
 }
 
@@ -1428,16 +1445,7 @@ static int sur40_vidioc_s_fmt(struct file *file, void *priv,
 	if (vb2_is_busy(&sur40->queue))
 		return -EBUSY;
 
-	switch (f->fmt.pix.pixelformat) {
-	case V4L2_PIX_FMT_GREY:
-		sur40->pix_fmt = sur40_pix_format[1];
-		break;
-
-	default:
-		sur40->pix_fmt = sur40_pix_format[0];
-		break;
-	}
-
+	sur40->pix_fmt = *sur40_find_format(f->fmt.pix.pixelformat);
 	f->fmt.pix = sur40->pix_fmt;
 	return 0;
 }
@@ -1495,7 +1503,9 @@ static int sur40_vidioc_enum_fmt(struct file *file, void *priv,
 	if (f->index >= ARRAY_SIZE(sur40_pix_format))
 		return -EINVAL;
 
-	f->pixelformat = sur40_pix_format[f->index].pixelformat;
+	/* enumerate the mode's default format first */
+	f->pixelformat = sur40_pix_format[video_node ? f->index :
+		ARRAY_SIZE(sur40_pix_format) - 1 - f->index].pixelformat;
 	f->flags = 0;
 	return 0;
 }
@@ -1608,7 +1618,7 @@ static const struct video_device sur40_video_device = {
 	.fops = &sur40_video_fops,
 	.ioctl_ops = &sur40_video_ioctl_ops,
 	.release = sur40_video_device_release,
-	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE |
 		       V4L2_CAP_READWRITE | V4L2_CAP_STREAMING,
 };
 
