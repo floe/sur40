@@ -217,7 +217,7 @@ struct sur40_state {
 	struct vb2_queue queue;
 	struct list_head buf_list;
 	spinlock_t qlock;
-	int sequence;
+	u32 sequence;
 
 	struct sur40_data *bulk_in_buffer;
 	size_t bulk_in_size;
@@ -597,10 +597,6 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	dev_dbg(sur40->dev, "image acquired\n");
 
-	/* return error if streaming was stopped in the meantime */
-	if (sur40->sequence == -1)
-		return;
-
 	/* mark as finished */
 	new_buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	new_buf->vb.sequence = sur40->sequence++;
@@ -930,7 +926,6 @@ static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
 	vb2_wait_for_all_buffers(vq);
-	sur40->sequence = -1;
 
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
