@@ -38,5 +38,5 @@ debug:
 	@echo
 
 clean:
-	-rm -rf *.o *.ko $(MODULE)*.mod.c Module.symvers .$(MODULE)* .tmp_versions modules.order
+	-rm -rf *.o .*.o *.ko *.mod *.mod.c *.mod.o *.symvers *.order .*.cmd .$(MODULE)* .tmp_versions
 
