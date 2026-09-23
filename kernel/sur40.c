@@ -992,6 +992,9 @@ static int sur40_vidioc_s_fmt(struct file *file, void *priv,
 {
 	struct sur40_state *sur40 = video_drvdata(file);
 
+	if (vb2_is_busy(&sur40->queue))
+		return -EBUSY;
+
 	switch (f->fmt.pix.pixelformat) {
 	case V4L2_PIX_FMT_GREY:
 		sur40->pix_fmt = sur40_pix_format[1];
