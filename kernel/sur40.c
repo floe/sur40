@@ -23,6 +23,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -43,6 +44,15 @@
 #include <media/v4l2-ctrls.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-sg.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 3, 0)
+#error "This standalone sur40 driver requires Linux 5.3 or newer. Use the in-tree driver on older kernels."
+#endif
+
+/* VFL_TYPE_GRABBER was renamed to VFL_TYPE_VIDEO in 5.7 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0)
+#define VFL_TYPE_VIDEO VFL_TYPE_GRABBER
+#endif
 
 /* read 512 bytes from endpoint 0x86 -> get header + blobs */
 struct sur40_header {
@@ -1064,7 +1074,7 @@ static int sur40_probe(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* Allocate memory for our device state and initialize it. */
-	sur40 = kzalloc_obj(*sur40);
+	sur40 = kzalloc(sizeof(struct sur40_state), GFP_KERNEL);
 	if (!sur40)
 		return -ENOMEM;
 
@@ -1237,10 +1247,13 @@ static void sur40_disconnect(struct usb_interface *interface)
 	sur40->disconnected = true;
 
 	/*
-	 * Wake up userspace waiting in DQBUF, then drop the video node
-	 * and disconnect the v4l2 device.
+	 * Wake up userspace waiting in DQBUF (added in 5.5; on older kernels
+	 * a blocked DQBUF sleeps until the file handle is closed), then drop
+	 * the video node.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
 	vb2_queue_error(&sur40->queue);
+#endif
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_disconnect(&sur40->v4l2);
 
@@ -1556,6 +1569,11 @@ static const struct vb2_ops sur40_queue_ops = {
 	.buf_queue		= sur40_buffer_queue,
 	.start_streaming	= sur40_start_streaming,
 	.stop_streaming		= sur40_stop_streaming,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
+	/* since 6.13 vb2 drops q->lock around blocking waits by itself */
+	.wait_prepare		= vb2_ops_wait_prepare,
+	.wait_finish		= vb2_ops_wait_finish,
+#endif
 };
 
 static const struct vb2_queue sur40_queue = {
@@ -1570,7 +1588,12 @@ static const struct vb2_queue sur40_queue = {
 	.ops = &sur40_queue_ops,
 	.mem_ops = &vb2_dma_sg_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
+	/* renamed to .min_queued_buffers in 6.8 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 	.min_queued_buffers = 3,
+#else
+	.min_buffers_needed = 3,
+#endif
 };
 
 static const struct v4l2_file_operations sur40_video_fops = {
